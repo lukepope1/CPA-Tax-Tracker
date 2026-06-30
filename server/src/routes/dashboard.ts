@@ -63,6 +63,7 @@ router.get("/inbox", async (req, res) => {
       assignedToId: userId,
       status: { not: "COMPLETED" },
       client: { is: { deletedAt: null } },
+      parentEngagementId: null, // top-level returns only (state/city roll up)
     },
     include: {
       client: { select: { id: true, name: true } },
@@ -70,6 +71,7 @@ router.get("/inbox", async (req, res) => {
         where: { completed: false },
         orderBy: { dueDate: "asc" },
       },
+      statusChanges: { orderBy: { changedAt: "desc" }, take: 1 },
     },
   });
 
@@ -90,6 +92,7 @@ router.get("/inbox", async (req, res) => {
       extensionFiled: eng.extensionFiled,
       nextDueDate: next ? next.dueDate : null,
       nextDueType: next ? next.type : null,
+      statusSince: eng.statusChanges[0]?.changedAt ?? null,
     };
   });
 

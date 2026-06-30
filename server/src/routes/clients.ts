@@ -21,6 +21,7 @@ const clientSchema = z.object({
   fiscalYearEndMonth: z.number().int().min(1).max(12).default(12),
   fiscalYearEndDay: z.number().int().min(1).max(31).default(31),
   notes: z.string().optional().nullable(),
+  parentId: z.string().optional().nullable(),
 });
 
 const TRASH_RETENTION_DAYS = 90;
@@ -54,7 +55,7 @@ router.get("/", async (req, res) => {
         : {}),
     },
     orderBy: { name: "asc" },
-    include: { _count: { select: { engagements: true } } },
+    include: { _count: { select: { engagements: true } }, parent: { select: { id: true, name: true } } },
   });
   res.json(clients);
 });
@@ -79,6 +80,7 @@ router.get("/:id", async (req, res) => {
           dueDates: true,
           assignedTo: { select: { id: true, name: true } },
           timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+          statusChanges: { orderBy: { changedAt: "desc" }, include: { changedBy: { select: { name: true } } } },
         },
         orderBy: [{ taxYear: "desc" }, { formType: "asc" }],
       },
@@ -173,6 +175,7 @@ router.post("/", async (req, res) => {
       firstName: data.firstName || null,
       lastName: data.lastName || null,
       spouseName: data.spouseName || null,
+      parentId: data.parentId || null,
     },
   });
   res.status(201).json(client);
@@ -188,6 +191,7 @@ router.put("/:id", async (req, res) => {
       ...data,
       clientCode: data.clientCode ?? undefined,
       contactEmail: data.contactEmail ?? undefined,
+      parentId: data.parentId === undefined ? undefined : data.parentId || null,
     },
   });
   res.json(client);

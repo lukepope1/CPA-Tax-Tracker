@@ -115,6 +115,7 @@ export default function Clients() {
   const [lastName, setLastName] = useState("");
   const [spouseName, setSpouseName] = useState("");
   const [clientCode, setClientCode] = useState("");
+  const [parentId, setParentId] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -143,6 +144,7 @@ export default function Clients() {
           lastName: isIndividual ? lastName || undefined : undefined,
           spouseName: isIndividual ? spouseName || undefined : undefined,
           clientCode: clientCode || undefined,
+          parentId: parentId || undefined,
           contactName: contactName || undefined,
           contactEmail: contactEmail || undefined,
           contactPhone: contactPhone || undefined,
@@ -160,6 +162,7 @@ export default function Clients() {
       setLastName("");
       setSpouseName("");
       setClientCode("");
+      setParentId("");
       setContactName("");
       setContactEmail("");
       setContactPhone("");
@@ -251,6 +254,7 @@ export default function Clients() {
     name: c.name,
     type: c.clientType ?? "",
     code: c.clientCode ?? "",
+    parent: c.parent?.name ?? "",
     email: c.contactEmail ?? "",
     fye: c.fiscalYearEndMonth * 100 + c.fiscalYearEndDay,
     engagements: c._count?.engagements ?? 0,
@@ -340,6 +344,15 @@ export default function Clients() {
             <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={clientCode} onChange={(e) => setClientCode(e.target.value)} />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Client (optional)</label>
+            <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={parentId} onChange={(e) => setParentId(e.target.value)}>
+              <option value="">None</option>
+              {clients?.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name (optional)</label>
             <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={contactName} onChange={(e) => setContactName(e.target.value)} />
           </div>
@@ -387,6 +400,7 @@ export default function Clients() {
               <SortTh field="name" label="Name" sort={sort} />
               <SortTh field="type" label="Type" sort={sort} className="whitespace-nowrap" />
               <SortTh field="code" label="Code" sort={sort} />
+              <SortTh field="parent" label="Parent" sort={sort} className="whitespace-nowrap" />
               <SortTh field="email" label="Contact Email" sort={sort} />
               <SortTh field="fye" label="Fiscal Year End" sort={sort} />
               <SortTh field="engagements" label="Engagements" sort={sort} align="right" />
@@ -395,7 +409,7 @@ export default function Clients() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={7}><Loading /></td></tr>
+              <tr><td colSpan={8}><Loading /></td></tr>
             )}
             {sort.sorted.map((r) => {
               const c = r.client;
@@ -406,6 +420,7 @@ export default function Clients() {
                   </td>
                   <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.clientType ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.clientCode ?? "-"}</td>
+                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.parent?.name ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.contactEmail ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{MONTHS[c.fiscalYearEndMonth - 1]} {c.fiscalYearEndDay}</td>
                   <td className="py-2 px-4 text-right text-gray-600">{c._count?.engagements ?? 0}</td>
@@ -421,7 +436,7 @@ export default function Clients() {
               );
             })}
             {clients && clients.length === 0 && (
-              <tr><td colSpan={7}><EmptyState title="No clients yet" hint="Add a client or import from Excel to get started." /></td></tr>
+              <tr><td colSpan={8}><EmptyState title="No clients yet" hint="Add a client or import from Excel to get started." /></td></tr>
             )}
           </tbody>
         </table>
@@ -472,6 +487,15 @@ export default function Clients() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
               <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.clientCode ?? ""} onChange={(e) => setEdit({ ...edit, clientCode: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Client</label>
+              <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.parentId ?? ""} onChange={(e) => setEdit({ ...edit, parentId: e.target.value || null })}>
+                <option value="">None</option>
+                {clients?.filter((c) => c.id !== edit.id).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>

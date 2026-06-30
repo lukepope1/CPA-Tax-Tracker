@@ -34,6 +34,7 @@ interface InboxItem {
   extensionFiled: boolean;
   nextDueDate: string | null;
   nextDueType: DueDateType | null;
+  statusSince: string | null;
 }
 
 function formatDate(d: string) {
@@ -112,6 +113,7 @@ export default function Dashboard() {
                 <th className="py-2 pr-4">Client</th>
                 <th className="py-2 pr-4">Return</th>
                 <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Status Since</th>
                 <th className="py-2 pr-4">Next Due</th>
               </tr>
             </thead>
@@ -129,6 +131,7 @@ export default function Dashboard() {
                       {engagementLabel(item)}
                     </td>
                     <td className="py-2 pr-4 whitespace-nowrap"><StatusBadge status={item.status} /></td>
+                    <td className="py-2 pr-4 whitespace-nowrap text-gray-500">{item.statusSince ? formatDate(item.statusSince) : "—"}</td>
                     <td className={`py-2 pr-4 whitespace-nowrap ${overdueItem ? "text-red-700 font-medium" : ""}`}>
                       {item.nextDueDate
                         ? `${formatDate(item.nextDueDate)}${item.nextDueType ? ` (${DUE_DATE_TYPE_LABELS[item.nextDueType]})` : ""}`

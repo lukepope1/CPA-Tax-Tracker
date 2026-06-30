@@ -100,7 +100,7 @@ router.get("/firm", async (req, res) => {
     },
     select: {
       formType: true,
-      jurisdiction: true,
+      parentEngagementId: true,
       status: true,
       billed: true,
       billedAmount: true,
@@ -119,10 +119,10 @@ router.get("/firm", async (req, res) => {
   let billedStandardValue = 0; // standard value of time on billed returns, for realization
 
   for (const eng of engagements) {
-    // Return counts reflect federal returns only (a 1040 with its state/city
-    // returns is one return). Dollar figures still include all jurisdictions.
-    const isFederal = !eng.jurisdiction || eng.jurisdiction === "Federal";
-    if (isFederal) {
+    // Return counts reflect top-level returns only (a federal 1040 with its
+    // state/city sub-returns is one return). Dollar figures include everything.
+    const isTopLevel = !eng.parentEngagementId;
+    if (isTopLevel) {
       totalReturns++;
       byType[eng.formType] = (byType[eng.formType] ?? 0) + 1;
       byStatus[eng.status] = (byStatus[eng.status] ?? 0) + 1;

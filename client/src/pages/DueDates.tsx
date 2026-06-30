@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import {
+  Client,
   DueDate,
   DUE_DATE_TYPE_LABELS,
   ENGAGEMENT_STATUS_LABELS,
@@ -25,7 +26,13 @@ export default function DueDates() {
   const [taxYear, setTaxYear] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [assignedFilter, setAssignedFilter] = useState<string>("");
+  const [parentFilter, setParentFilter] = useState<string>("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data,
+  });
 
   const { data: taxYears } = useQuery<number[]>({
     queryKey: ["due-dates", "tax-years"],
@@ -38,7 +45,7 @@ export default function DueDates() {
   });
 
   const { data: dueDates, isLoading } = useQuery<DueDate[]>({
-    queryKey: ["due-dates", "list", String(days), taxYear, statusFilter, assignedFilter, includeCompleted],
+    queryKey: ["due-dates", "list", String(days), taxYear, statusFilter, assignedFilter, parentFilter, includeCompleted],
     queryFn: async () =>
       (
         await api.get("/due-dates", {
@@ -46,6 +53,7 @@ export default function DueDates() {
             includeCompleted: includeCompleted ? "true" : "false",
             ...(statusFilter ? { status: statusFilter } : {}),
             ...(assignedFilter ? { assignedToId: assignedFilter } : {}),
+            ...(parentFilter ? { parentClientId: parentFilter } : {}),
             ...(taxYear ? { taxYear } : days !== "all" ? { days } : {}),
           },
         })
@@ -210,6 +218,15 @@ export default function DueDates() {
               <option value="">Anyone</option>
               {users?.map((u) => (
                 <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            Parent:
+            <select className="border border-gray-300 rounded px-2 py-1" value={parentFilter} onChange={(e) => setParentFilter(e.target.value)}>
+              <option value="">Any parent</option>
+              {clients?.filter((c) => clients.some((x) => x.parentId === c.id)).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </label>

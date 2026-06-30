@@ -237,7 +237,7 @@ export default function TimeEntries() {
                 disabled={!timerClientId}
               >
                 <option value="">General / none</option>
-                {timerEngagements?.map((eng) => (
+                {timerEngagements?.filter((eng) => !eng.parentEngagementId).map((eng) => (
                   <option key={eng.id} value={eng.id}>{engagementLabel(eng)}</option>
                 ))}
               </select>
@@ -299,7 +299,7 @@ export default function TimeEntries() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Return (optional)</label>
           <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={engagementId} onChange={(e) => setEngagementId(e.target.value)} disabled={!clientId}>
             <option value="">General / none</option>
-            {engagements?.map((eng) => (
+            {engagements?.filter((eng) => !eng.parentEngagementId).map((eng) => (
               <option key={eng.id} value={eng.id}>{engagementLabel(eng)}</option>
             ))}
           </select>

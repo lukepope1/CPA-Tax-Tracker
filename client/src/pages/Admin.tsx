@@ -68,6 +68,16 @@ export default function Admin() {
     onError: () => toast("Export failed.", "error"),
   });
 
+  const relinkSubtasks = useMutation({
+    mutationFn: async () => (await api.post("/engagements/relink-subtasks")).data as { linked: number; historySeeded: number },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["client"] });
+      queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
+      toast(`Linked ${r.linked} state/city returns to their federal parent; seeded ${r.historySeeded} history entries.`);
+    },
+    onError: () => toast("Relink failed.", "error"),
+  });
+
   async function handleRollForward() {
     if (!rollYear) return;
     const from = Number(rollYear);
@@ -176,6 +186,21 @@ export default function Admin() {
             {rollForward.isPending ? "Rolling forward…" : "Roll Forward"}
           </button>
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1">Maintenance</h2>
+        <p className="text-xs text-gray-400 mb-3">
+          One-time: link existing state/city returns to their federal parent (so they become sub-returns) and seed status history for older returns. Safe to run more than once.
+        </p>
+        <button
+          type="button"
+          onClick={() => relinkSubtasks.mutate()}
+          disabled={relinkSubtasks.isPending}
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          {relinkSubtasks.isPending ? "Linking…" : "Link state/city returns to federal"}
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">

@@ -132,6 +132,8 @@ export interface Client {
   fiscalYearEndDay: number;
   notes: string | null;
   deletedAt?: string | null;
+  parentId?: string | null;
+  parent?: { id: string; name: string } | null;
   _count?: { engagements: number };
   engagements?: Engagement[];
 }
@@ -166,6 +168,7 @@ export interface Engagement {
   formType: FormType;
   jurisdiction?: string;
   description?: string | null;
+  parentEngagementId?: string | null;
   taxYear: number;
   fiscalYearEndMonth: number;
   fiscalYearEndDay: number;
@@ -183,6 +186,14 @@ export interface Engagement {
   billedDate?: string | null;
   billedAmount?: number | null;
   timeEntries?: { hours: number; rate?: number | null; user?: { billableRate?: number | null } | null }[];
+  statusChanges?: StatusChange[];
+}
+
+export interface StatusChange {
+  id: string;
+  status: EngagementStatus;
+  changedAt: string;
+  changedBy?: { name: string } | null;
 }
 
 export interface TimeEntry {

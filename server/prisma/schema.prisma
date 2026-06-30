@@ -26,6 +26,7 @@ model User {
 
   timeEntries          TimeEntry[]
   assignedEngagements  Engagement[]
+  statusChanges        StatusChange[]
 }
 
 model Client {
@@ -46,6 +47,11 @@ model Client {
   notes               String?
   deletedAt           DateTime?  // soft-delete: set when moved to trash; restorable for 90 days
   createdAt           DateTime @default(now())
+
+  // Optional parent client (simple one-level link for grouping related clients)
+  parentId            String?
+  parent              Client?  @relation("ClientHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children            Client[] @relation("ClientHierarchy")
 
   engagements Engagement[]
   timeEntries TimeEntry[]
@@ -79,11 +85,30 @@ model Engagement {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  dueDates    DueDate[]
-  timeEntries TimeEntry[]
+  // Sub-task model: state/city returns are children of the federal return.
+  parentEngagementId String?
+  parentEngagement   Engagement?    @relation("EngagementHierarchy", fields: [parentEngagementId], references: [id], onDelete: Cascade)
+  subEngagements     Engagement[]   @relation("EngagementHierarchy")
+
+  dueDates      DueDate[]
+  timeEntries   TimeEntry[]
+  statusChanges StatusChange[]
 
   @@index([clientId])
   @@index([taxYear])
+  @@index([parentEngagementId])
+}
+
+model StatusChange {
+  id           String     @id @default(cuid())
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagementId String
+  status       String
+  changedAt    DateTime   @default(now())
+  changedBy    User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  changedById  String?
+
+  @@index([engagementId])
 }
 
 model DueDate {

@@ -21,8 +21,10 @@ const EXTENSION_NOT = [
 
 // Builds the engagement-level filter shared by the firm-wide views: never show
 // due dates for trashed clients, and optionally scope to a tax year or assignee.
-function engagementFilter(opts: { taxYear?: number; assignedToId?: string; status?: string } = {}) {
-  const is: Record<string, unknown> = { client: { is: { deletedAt: null } } };
+function engagementFilter(opts: { taxYear?: number; assignedToId?: string; status?: string; parentClientId?: string } = {}) {
+  const clientIs: Record<string, unknown> = { deletedAt: null };
+  if (opts.parentClientId) clientIs.parentId = opts.parentClientId;
+  const is: Record<string, unknown> = { client: { is: clientIs } };
   if (opts.taxYear) is.taxYear = opts.taxYear;
   if (opts.assignedToId) is.assignedToId = opts.assignedToId;
   if (opts.status) is.status = opts.status;
@@ -30,7 +32,7 @@ function engagementFilter(opts: { taxYear?: number; assignedToId?: string; statu
 }
 
 router.get("/", async (req, res) => {
-  const { from, to, includeCompleted, days, taxYear, assignedToId, status } = req.query;
+  const { from, to, includeCompleted, days, taxYear, assignedToId, status, parentClientId } = req.query;
 
   const where: Record<string, unknown> = {
     completed: includeCompleted === "true" ? undefined : false,
@@ -38,6 +40,7 @@ router.get("/", async (req, res) => {
       taxYear: taxYear ? Number(taxYear) : undefined,
       assignedToId: assignedToId ? String(assignedToId) : undefined,
       status: status ? String(status) : undefined,
+      parentClientId: parentClientId ? String(parentClientId) : undefined,
     }),
     NOT: EXTENSION_NOT,
   };

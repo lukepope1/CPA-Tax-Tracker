@@ -97,17 +97,20 @@ export default function ClientDetail() {
 
   const createEngagement = useMutation({
     mutationFn: async (jurisdictions: string[]) => {
-      // Create one return per selected jurisdiction (Federal / State / City).
-      for (const jurisdiction of jurisdictions) {
-        await api.post("/engagements", {
-          clientId: id,
-          formType,
-          jurisdiction,
-          description: engDescription || undefined,
-          taxYear,
-          fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
-          fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
-        });
+      // The first jurisdiction (Federal when selected) becomes the parent return;
+      // state/city returns are created as its sub-engagements.
+      const base = {
+        clientId: id,
+        formType,
+        description: engDescription || undefined,
+        taxYear,
+        fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
+        fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
+      };
+      const [first, ...rest] = jurisdictions;
+      const parent = (await api.post("/engagements", { ...base, jurisdiction: first })).data;
+      for (const jurisdiction of rest) {
+        await api.post("/engagements", { ...base, jurisdiction, parentEngagementId: parent.id });
       }
       return jurisdictions.length;
     },
@@ -652,6 +655,25 @@ export default function ClientDetail() {
                     ))}
                 </tbody>
               </table>
+
+              {eng.statusChanges && eng.statusChanges.length > 0 && (
+                <details className="mt-3 text-xs text-gray-500">
+                  <summary className="cursor-pointer hover:text-gray-700">
+                    Status history ({eng.statusChanges.length})
+                  </summary>
+                  <ul className="mt-1 space-y-0.5 pl-2">
+                    {eng.statusChanges.map((sc) => (
+                      <li key={sc.id}>
+                        {new Date(sc.changedAt).toLocaleString(undefined, {
+                          year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                        })}{" "}
+                        — {ENGAGEMENT_STATUS_LABELS[sc.status]}
+                        {sc.changedBy?.name ? ` by ${sc.changedBy.name}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
           ))
         ) : (
