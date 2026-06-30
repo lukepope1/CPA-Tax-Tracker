@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum support, so the following fields are plain
+// Strings whose allowed values are enforced at the application layer
+// (see server/src/lib/dueDates.ts and the zod schemas in src/routes):
+//   User.role          -> "ADMIN" | "STAFF"
+//   Engagement.formType -> "FORM_1040" | "FORM_1065" | "FORM_1120S" | "FORM_1120" | "FORM_990"
+//   Engagement.status  -> "NOT_STARTED" | "INFORMATION_RECEIVED" | "IN_PREP" | "IN_REVIEW" | "READY_FOR_DELIVERY" | "COMPLETED"
+//   DueDate.type       -> "ORIGINAL_FILING" | "EXTENDED_FILING" | "ESTIMATE_Q1..Q4"
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("STAFF")
+  billableRate Float?
+  createdAt DateTime @default(now())
+
+  timeEntries          TimeEntry[]
+  assignedEngagements  Engagement[]
+}
+
+model Client {
+  id                  String   @id @default(cuid())
+  name                String
+  // Client type: Corporation | Individual | Estate | Trust | Partnership | S Corporation | Non-Profit
+  clientType          String   @default("Corporation")
+  // For Individual clients:
+  firstName           String?
+  lastName            String?
+  spouseName          String?
+  clientCode          String?  @unique
+  contactName         String?
+  contactEmail        String?
+  contactPhone        String?
+  fiscalYearEndMonth  Int      @default(12) // 1-12
+  fiscalYearEndDay    Int      @default(31) // 1-31
+  notes               String?
+  deletedAt           DateTime?  // soft-delete: set when moved to trash; restorable for 90 days
+  createdAt           DateTime @default(now())
+
+  engagements Engagement[]
+  timeEntries TimeEntry[]
+}
+
+model Engagement {
+  id              String            @id @default(cuid())
+  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId        String
+  formType        String
+  jurisdiction    String            @default("Federal") // "Federal" or a US state name
+  taxYear         Int
+  fiscalYearEndMonth Int            @default(12)
+  fiscalYearEndDay   Int            @default(31)
+  status          String           @default("NOT_STARTED")
+  extensionFiled  Boolean          @default(false)
+  assignedTo      User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId    String?
+  notes           String?
+
+  // Billing & realization tracking
+  projectedFee    Float?            // projected fee from the engagement letter (EL)
+  priorYearFee    Float?            // prior-year fee, for comparison
+  priorYearHours  Float?            // prior-year hours, for comparison
+  priorBilled     Float?            // prior amount billed for this return
+  billed          Boolean           @default(false)
+  billedDate      DateTime?
+  billedAmount    Float?            // amount actually billed to the client
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  dueDates    DueDate[]
+  timeEntries TimeEntry[]
+
+  @@index([clientId])
+  @@index([taxYear])
+}
+
+model DueDate {
+  id            String      @id @default(cuid())
+  engagement    Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagementId  String
+  type          String
+  dueDate       DateTime
+  completed     Boolean     @default(false)
+  completedDate DateTime?
+  notes         String?
+
+  @@index([engagementId])
+  @@index([dueDate])
+}
+
+model TimeEntry {
+  id           String      @id @default(cuid())
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  client       Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String
+  engagement   Engagement? @relation(fields: [engagementId], references: [id])
+  engagementId String?
+  date         DateTime
+  hours        Float
+  description  String
+  billable     Boolean     @default(true)
+  rate         Float?      // optional per-entry rate override; falls back to the user's billable rate
+  createdAt    DateTime    @default(now())
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([date])
+}

@@ -1,0 +1,56 @@
+# Render Blueprint for CPA Tax Tracker
+# Creates a managed Postgres database, the API web service, and the static frontend.
+# After the first deploy, set the two cross-URL env vars (CLIENT_ORIGIN and
+# VITE_API_URL) in the dashboard — see DEPLOY.md.
+
+databases:
+  - name: cpa-tax-tracker-db
+    plan: free
+    databaseName: cpa_tax_tracker
+    user: cpa
+
+services:
+  # ---- API (Express + Prisma) ----
+  - type: web
+    name: cpa-tax-tracker-api
+    runtime: node
+    rootDir: server
+    plan: free
+    # Local dev uses SQLite; production uses Postgres. We swap the Prisma
+    # datasource provider at build time, then push the schema to the DB.
+    buildCommand: >-
+      npm install &&
+      sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma &&
+      npx prisma generate &&
+      npx prisma db push --accept-data-loss &&
+      npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cpa-tax-tracker-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_VERSION
+        value: "20"
+      # Set this to the static site's URL after first deploy (e.g. https://cpa-tax-tracker-web.onrender.com)
+      - key: CLIENT_ORIGIN
+        sync: false
+
+  # ---- Frontend (React + Vite static site) ----
+  - type: web
+    name: cpa-tax-tracker-web
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Set this to the API's URL + /api after first deploy (e.g. https://cpa-tax-tracker-api.onrender.com/api)
+      - key: VITE_API_URL
+        sync: false
