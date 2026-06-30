@@ -53,6 +53,40 @@ router.post("/bill", async (req, res) => {
   res.json({ billedReturns: engagements.length, amount });
 });
 
+// Outstanding WIP for a single client, broken down by employee. Counts time on
+// the client's unbilled returns plus any general (no-return) time.
+router.get("/wip/:clientId/by-user", async (req, res) => {
+  const clientId = req.params.clientId;
+
+  const unbilled = await prisma.engagement.findMany({
+    where: { clientId, billed: false },
+    select: { id: true },
+  });
+  const engIds = unbilled.map((e) => e.id);
+
+  const entries = await prisma.timeEntry.findMany({
+    where: {
+      clientId,
+      OR: [{ engagementId: { in: engIds } }, { engagementId: null }],
+    },
+    select: { hours: true, rate: true, user: { select: { id: true, name: true, billableRate: true } } },
+  });
+
+  const map = new Map<string, { userId: string; userName: string; hours: number; value: number }>();
+  for (const t of entries) {
+    const userId = t.user?.id ?? "unknown";
+    const userName = t.user?.name ?? "Unknown";
+    const value = t.hours * (t.rate ?? t.user?.billableRate ?? 0);
+    const cur = map.get(userId) ?? { userId, userName, hours: 0, value: 0 };
+    cur.hours += t.hours;
+    cur.value += value;
+    map.set(userId, cur);
+  }
+
+  const rows = [...map.values()].filter((r) => r.hours > 0).sort((a, b) => b.value - a.value);
+  res.json(rows);
+});
+
 // Firm-wide dashboard summary, optionally scoped to a single tax year.
 // Returns aggregate counts (total returns, by return type, by status) along
 // with total WIP, total billed, and overall realization.

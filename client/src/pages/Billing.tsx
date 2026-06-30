@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -16,6 +17,13 @@ interface WipRow {
   openEngagements: number;
 }
 
+interface WipByUser {
+  userId: string;
+  userName: string;
+  hours: number;
+  value: number;
+}
+
 interface WipResponse {
   rows: WipRow[];
   totals: { wipHours: number; wipValue: number; billedTotal: number };
@@ -29,9 +37,16 @@ export default function Billing() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { prompt } = useDialog();
+  const [detail, setDetail] = useState<WipRow | null>(null);
   const { data, isLoading } = useQuery<WipResponse>({
     queryKey: ["billing-wip"],
     queryFn: async () => (await api.get("/billing/wip")).data,
+  });
+
+  const { data: byUser, isLoading: byUserLoading } = useQuery<WipByUser[]>({
+    queryKey: ["billing-wip-by-user", detail?.clientId],
+    queryFn: async () => (await api.get(`/billing/wip/${detail!.clientId}/by-user`)).data,
+    enabled: !!detail,
   });
 
   const bill = useMutation({
@@ -152,8 +167,24 @@ export default function Billing() {
                 </td>
                 <td className="py-2 px-4 text-gray-600">{r.clientType ?? "-"}</td>
                 <td className="py-2 px-4 text-right text-gray-600">{r.openEngagements}</td>
-                <td className="py-2 px-4 text-right text-gray-600">{r.wipHours.toFixed(1)}</td>
-                <td className="py-2 px-4 text-right font-medium text-gray-800">{currency(r.wipValue)}</td>
+                <td className="py-2 px-4 text-right">
+                  {r.wipHours > 0 ? (
+                    <button className="text-brand-600 hover:underline" onClick={() => setDetail(r)} title="Breakdown by employee">
+                      {r.wipHours.toFixed(1)}
+                    </button>
+                  ) : (
+                    <span className="text-gray-600">0.0</span>
+                  )}
+                </td>
+                <td className="py-2 px-4 text-right font-medium">
+                  {r.wipValue > 0 ? (
+                    <button className="text-brand-600 hover:underline" onClick={() => setDetail(r)} title="Breakdown by employee">
+                      {currency(r.wipValue)}
+                    </button>
+                  ) : (
+                    <span className="text-gray-800">{currency(r.wipValue)}</span>
+                  )}
+                </td>
                 <td className="py-2 px-4 text-right text-gray-600">{currency(r.billedTotal)}</td>
                 <td className="py-2 px-4 text-right">
                   <button
@@ -183,6 +214,60 @@ export default function Billing() {
           )}
         </table>
       </div>
+
+      {detail && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onMouseDown={() => setDetail(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out]"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-heading text-lg font-semibold text-gray-800">{detail.clientName}</h3>
+                <p className="text-xs text-gray-500">Outstanding WIP by employee</p>
+              </div>
+              <button className="text-gray-400 hover:text-gray-700" onClick={() => setDetail(null)}>✕</button>
+            </div>
+
+            <div className="mt-4">
+              {byUserLoading ? (
+                <Loading />
+              ) : byUser && byUser.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="py-2">Employee</th>
+                      <th className="py-2 text-right">Hours</th>
+                      <th className="py-2 text-right">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {byUser.map((u) => (
+                      <tr key={u.userId} className="border-b last:border-0">
+                        <td className="py-2 text-gray-800">{u.userName}</td>
+                        <td className="py-2 text-right text-gray-600">{u.hours.toFixed(1)}</td>
+                        <td className="py-2 text-right font-medium text-gray-800">{currency(u.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t font-semibold text-gray-800">
+                      <td className="py-2">Total</td>
+                      <td className="py-2 text-right">{detail.wipHours.toFixed(1)}</td>
+                      <td className="py-2 text-right">{currency(detail.wipValue)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              ) : (
+                <EmptyState title="No unbilled time" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
