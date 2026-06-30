@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { EngagementStatus, FORM_TYPE_LABELS, FormType } from "../lib/types";
+import { ENGAGEMENT_STATUSES, FORM_TYPE_LABELS, FormType } from "../lib/types";
 import { Loading, StatusBadge } from "../components/ui";
 
 interface FirmSummary {
@@ -14,14 +14,7 @@ interface FirmSummary {
 }
 
 const FORM_ORDER: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990"];
-const STATUS_ORDER: EngagementStatus[] = [
-  "NOT_STARTED",
-  "INFORMATION_RECEIVED",
-  "IN_PREP",
-  "IN_REVIEW",
-  "READY_FOR_DELIVERY",
-  "COMPLETED",
-];
+const STATUS_ORDER = ENGAGEMENT_STATUSES;
 
 function currency(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD" });

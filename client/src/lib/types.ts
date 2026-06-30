@@ -3,10 +3,29 @@ export type FormType = "FORM_1040" | "FORM_1065" | "FORM_1120S" | "FORM_1120" | 
 export type EngagementStatus =
   | "NOT_STARTED"
   | "INFORMATION_RECEIVED"
+  | "MISSING_ITEMS"
   | "IN_PREP"
+  | "OPEN_FOR_QUESTIONS"
   | "IN_REVIEW"
+  | "REVIEW_NOTES"
+  | "SECOND_REVIEW"
   | "READY_FOR_DELIVERY"
+  | "AWAITING_CLIENT_APPROVAL"
   | "COMPLETED";
+
+export const ENGAGEMENT_STATUSES: EngagementStatus[] = [
+  "NOT_STARTED",
+  "INFORMATION_RECEIVED",
+  "MISSING_ITEMS",
+  "IN_PREP",
+  "OPEN_FOR_QUESTIONS",
+  "IN_REVIEW",
+  "REVIEW_NOTES",
+  "SECOND_REVIEW",
+  "READY_FOR_DELIVERY",
+  "AWAITING_CLIENT_APPROVAL",
+  "COMPLETED",
+];
 
 export type DueDateType =
   | "ORIGINAL_FILING"
@@ -47,9 +66,14 @@ export const DUE_DATE_TYPE_LABELS: Record<DueDateType, string> = {
 export const ENGAGEMENT_STATUS_LABELS: Record<EngagementStatus, string> = {
   NOT_STARTED: "Not Started",
   INFORMATION_RECEIVED: "Information Received",
+  MISSING_ITEMS: "Missing Items",
   IN_PREP: "In Prep",
+  OPEN_FOR_QUESTIONS: "Open for Questions",
   IN_REVIEW: "In Review",
+  REVIEW_NOTES: "Review Notes",
+  SECOND_REVIEW: "2nd Review",
   READY_FOR_DELIVERY: "Ready for Delivery",
+  AWAITING_CLIENT_APPROVAL: "Awaiting Client Approval",
   COMPLETED: "Completed",
 };
 

@@ -12,7 +12,7 @@ const timeEntrySchema = z.object({
   engagementId: z.string().optional().nullable(),
   date: z.string().datetime(),
   hours: z.number().positive().max(24),
-  description: z.string().min(1),
+  description: z.string().optional().default(""),
   billable: z.boolean().default(true),
   rate: z.number().nonnegative().optional().nullable(),
 });

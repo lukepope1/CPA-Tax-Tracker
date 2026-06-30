@@ -6,20 +6,14 @@ import {
   DueDate,
   DUE_DATE_TYPE_LABELS,
   ENGAGEMENT_STATUS_LABELS,
+  ENGAGEMENT_STATUSES,
   EngagementStatus,
   engagementLabel,
   User,
 } from "../lib/types";
 import { Loading, EmptyState } from "../components/ui";
 
-const STATUSES: EngagementStatus[] = [
-  "NOT_STARTED",
-  "INFORMATION_RECEIVED",
-  "IN_PREP",
-  "IN_REVIEW",
-  "READY_FOR_DELIVERY",
-  "COMPLETED",
-];
+const STATUSES = ENGAGEMENT_STATUSES;
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
@@ -29,6 +23,8 @@ export default function DueDates() {
   const queryClient = useQueryClient();
   const [days, setDays] = useState<string>("all");
   const [taxYear, setTaxYear] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [assignedFilter, setAssignedFilter] = useState<string>("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
 
   const { data: taxYears } = useQuery<number[]>({
@@ -42,12 +38,14 @@ export default function DueDates() {
   });
 
   const { data: dueDates, isLoading } = useQuery<DueDate[]>({
-    queryKey: ["due-dates", "list", String(days), taxYear, includeCompleted],
+    queryKey: ["due-dates", "list", String(days), taxYear, statusFilter, assignedFilter, includeCompleted],
     queryFn: async () =>
       (
         await api.get("/due-dates", {
           params: {
             includeCompleted: includeCompleted ? "true" : "false",
+            ...(statusFilter ? { status: statusFilter } : {}),
+            ...(assignedFilter ? { assignedToId: assignedFilter } : {}),
             ...(taxYear ? { taxYear } : days !== "all" ? { days } : {}),
           },
         })
@@ -196,7 +194,25 @@ export default function DueDates() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-800">Due Dates</h1>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <label className="flex items-center gap-2">
+            Status:
+            <select className="border border-gray-300 rounded px-2 py-1" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            Assigned:
+            <select className="border border-gray-300 rounded px-2 py-1" value={assignedFilter} onChange={(e) => setAssignedFilter(e.target.value)}>
+              <option value="">Anyone</option>
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </label>
           <label className="flex items-center gap-2">
             Tax Year:
             <select className="border border-gray-300 rounded px-2 py-1" value={taxYear} onChange={(e) => setTaxYear(e.target.value)}>

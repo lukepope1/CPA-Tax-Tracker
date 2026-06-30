@@ -8,6 +8,7 @@ import {
   ClientType,
   DUE_DATE_TYPE_LABELS,
   ENGAGEMENT_STATUS_LABELS,
+  ENGAGEMENT_STATUSES,
   Engagement,
   EngagementStatus,
   FORM_TYPE_LABELS,
@@ -26,14 +27,7 @@ const MONTHS = [
 ];
 
 const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990"];
-const STATUSES: EngagementStatus[] = [
-  "NOT_STARTED",
-  "INFORMATION_RECEIVED",
-  "IN_PREP",
-  "IN_REVIEW",
-  "READY_FOR_DELIVERY",
-  "COMPLETED",
-];
+const STATUSES = ENGAGEMENT_STATUSES;
 
 function yearOptions() {
   const current = new Date().getFullYear();
@@ -76,7 +70,7 @@ function priorYear(eng: Engagement, all: Engagement[]): { billed: number | null;
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { prompt } = useDialog();
+  const { prompt, confirm } = useDialog();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -185,6 +179,25 @@ export default function ClientDetail() {
       toast("Due date updated.");
     },
   });
+
+  const deleteEngagement = useMutation({
+    mutationFn: async (engagementId: string) => api.delete(`/engagements/${engagementId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["due-dates"] });
+      toast("Return deleted.");
+    },
+  });
+
+  async function handleDeleteEngagement(eng: Engagement) {
+    const ok = await confirm({
+      title: `Delete this return?`,
+      message: `${engagementLabel(eng)} — this permanently removes the return, its due dates, and unlinks its time entries. This cannot be undone.`,
+      confirmLabel: "Delete return",
+      tone: "danger",
+    });
+    if (ok) deleteEngagement.mutate(eng.id);
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -420,7 +433,27 @@ export default function ClientDetail() {
                     />
                     Extension filed
                   </label>
+                  <button
+                    className="text-sm text-red-600 hover:underline ml-2"
+                    onClick={() => handleDeleteEngagement(eng)}
+                  >
+                    Delete
+                  </button>
                 </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  rows={2}
+                  placeholder="e.g. waiting on K-1 from XYZ Partnership"
+                  defaultValue={eng.notes ?? ""}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (v !== (eng.notes ?? "")) updateEngagement.mutate({ engagementId: eng.id, data: { notes: v } });
+                  }}
+                />
               </div>
 
               {(() => {

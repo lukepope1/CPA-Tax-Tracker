@@ -34,9 +34,14 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
 const STATUS_STYLES: Record<EngagementStatus, string> = {
   NOT_STARTED: "bg-gray-100 text-gray-600",
   INFORMATION_RECEIVED: "bg-blue-100 text-blue-700",
+  MISSING_ITEMS: "bg-red-100 text-red-700",
   IN_PREP: "bg-indigo-100 text-indigo-700",
+  OPEN_FOR_QUESTIONS: "bg-orange-100 text-orange-700",
   IN_REVIEW: "bg-amber-100 text-amber-700",
+  REVIEW_NOTES: "bg-yellow-100 text-yellow-700",
+  SECOND_REVIEW: "bg-amber-100 text-amber-800",
   READY_FOR_DELIVERY: "bg-purple-100 text-purple-700",
+  AWAITING_CLIENT_APPROVAL: "bg-teal-100 text-teal-700",
   COMPLETED: "bg-green-100 text-green-700",
 };
 
