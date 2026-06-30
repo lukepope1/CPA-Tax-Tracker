@@ -74,8 +74,11 @@ export default function ClientDetail() {
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<FormType>("FORM_1040");
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
-  const [scope, setScope] = useState<"Federal" | "State">("Federal");
+  const [addFederal, setAddFederal] = useState(true);
+  const [addState, setAddState] = useState(false);
   const [state, setState] = useState(US_STATES[0]);
+  const [addCity, setAddCity] = useState(false);
+  const [city, setCity] = useState("");
 
   const { data: client } = useQuery<Client>({
     queryKey: ["client", id],
@@ -89,21 +92,27 @@ export default function ClientDetail() {
   });
 
   const createEngagement = useMutation({
-    mutationFn: async () =>
-      (
+    mutationFn: async (jurisdictions: string[]) => {
+      // Create one return per selected jurisdiction (Federal / State / City).
+      for (const jurisdiction of jurisdictions) {
         await api.post("/engagements", {
           clientId: id,
           formType,
-          jurisdiction: scope === "State" ? state : "Federal",
+          jurisdiction,
           taxYear,
           fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
           fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
-        })
-      ).data,
-    onSuccess: () => {
+        });
+      }
+      return jurisdictions.length;
+    },
+    onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["client", id] });
       setShowForm(false);
-      toast("Return added with due dates.");
+      setAddState(false);
+      setAddCity(false);
+      setCity("");
+      toast(`${count} return${count === 1 ? "" : "s"} added with due dates.`);
     },
   });
 
@@ -121,7 +130,15 @@ export default function ClientDetail() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    createEngagement.mutate();
+    const jurisdictions: string[] = [];
+    if (addFederal) jurisdictions.push("Federal");
+    if (addState) jurisdictions.push(state);
+    if (addCity && city.trim()) jurisdictions.push(city.trim());
+    if (jurisdictions.length === 0) {
+      toast("Select at least one jurisdiction (Federal, State, or City).", "error");
+      return;
+    }
+    createEngagement.mutate(jurisdictions);
   }
 
   if (!client) return <Loading />;
@@ -160,23 +177,6 @@ export default function ClientDetail() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Jurisdiction</label>
-            <select className="border border-gray-300 rounded px-3 py-2 text-sm" value={scope} onChange={(e) => setScope(e.target.value as "Federal" | "State")}>
-              <option value="Federal">Federal</option>
-              <option value="State">State</option>
-            </select>
-          </div>
-          {scope === "State" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <select className="border border-gray-300 rounded px-3 py-2 text-sm" value={state} onChange={(e) => setState(e.target.value)}>
-                {US_STATES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tax Year</label>
             <select className="border border-gray-300 rounded px-3 py-2 text-sm" value={taxYear} onChange={(e) => setTaxYear(Number(e.target.value))}>
               {yearOptions().map((y) => (
@@ -184,8 +184,50 @@ export default function ClientDetail() {
               ))}
             </select>
           </div>
+
+          <div className="w-full">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Jurisdictions to create</label>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={addFederal} onChange={(e) => setAddFederal(e.target.checked)} />
+                Federal
+              </label>
+
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={addState} onChange={(e) => setAddState(e.target.checked)} />
+                  State
+                </label>
+                <select
+                  className="border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  disabled={!addState}
+                >
+                  {US_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={addCity} onChange={(e) => setAddCity(e.target.checked)} />
+                  City
+                </label>
+                <input
+                  className="border border-gray-300 rounded px-2 py-1 text-sm disabled:opacity-50"
+                  placeholder="City name"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  disabled={!addCity}
+                />
+              </div>
+            </div>
+          </div>
+
           <button type="submit" disabled={createEngagement.isPending} className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50">
-            Create &amp; Generate Due Dates
+            {createEngagement.isPending ? "Creating…" : "Create & Generate Due Dates"}
           </button>
         </form>
       )}
