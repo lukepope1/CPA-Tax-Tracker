@@ -1,7 +1,15 @@
 import axios from "axios";
 
+// Normalize the configured API base URL so it always ends with exactly one
+// "/api" — tolerant of VITE_API_URL being set with or without the suffix or a
+// trailing slash (a common deployment foot-gun).
+function resolveBaseUrl(): string {
+  const raw = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").replace(/\/+$/, "");
+  return raw.endsWith("/api") ? raw : `${raw}/api`;
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api",
+  baseURL: resolveBaseUrl(),
 });
 
 api.interceptors.request.use((config) => {
