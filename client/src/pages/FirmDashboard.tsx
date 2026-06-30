@@ -63,6 +63,10 @@ export default function FirmDashboard() {
         </label>
       </div>
 
+      <p className="text-xs text-gray-400 -mt-2">
+        Return counts reflect federal returns only (state and city returns roll up under their federal return). WIP, billed, and realization include all jurisdictions.
+      </p>
+
       {isLoading && <Loading />}
 
       {data && (

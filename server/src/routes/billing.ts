@@ -100,6 +100,7 @@ router.get("/firm", async (req, res) => {
     },
     select: {
       formType: true,
+      jurisdiction: true,
       status: true,
       billed: true,
       billedAmount: true,
@@ -112,13 +113,21 @@ router.get("/firm", async (req, res) => {
 
   const byType: Record<string, number> = {};
   const byStatus: Record<string, number> = {};
+  let totalReturns = 0;
   let wipValue = 0;
   let billedTotal = 0;
   let billedStandardValue = 0; // standard value of time on billed returns, for realization
 
   for (const eng of engagements) {
-    byType[eng.formType] = (byType[eng.formType] ?? 0) + 1;
-    byStatus[eng.status] = (byStatus[eng.status] ?? 0) + 1;
+    // Return counts reflect federal returns only (a 1040 with its state/city
+    // returns is one return). Dollar figures still include all jurisdictions.
+    const isFederal = !eng.jurisdiction || eng.jurisdiction === "Federal";
+    if (isFederal) {
+      totalReturns++;
+      byType[eng.formType] = (byType[eng.formType] ?? 0) + 1;
+      byStatus[eng.status] = (byStatus[eng.status] ?? 0) + 1;
+    }
+
     const stdValue = valueOf(eng.timeEntries);
     if (eng.billed) {
       billedTotal += eng.billedAmount ?? 0;
@@ -131,7 +140,7 @@ router.get("/firm", async (req, res) => {
   const realization = billedStandardValue > 0 ? billedTotal / billedStandardValue : null;
 
   res.json({
-    totalReturns: engagements.length,
+    totalReturns,
     byType,
     byStatus,
     wipValue,
