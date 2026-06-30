@@ -23,7 +23,10 @@ const EXTENSION_NOT = [
 // due dates for trashed clients, and optionally scope to a tax year or assignee.
 function engagementFilter(opts: { taxYear?: number; assignedToId?: string; status?: string; parentClientId?: string } = {}) {
   const clientIs: Record<string, unknown> = { deletedAt: null };
-  if (opts.parentClientId) clientIs.parentId = opts.parentClientId;
+  if (opts.parentClientId) {
+    // Include the parent client itself plus all of its children.
+    clientIs.OR = [{ id: opts.parentClientId }, { parentId: opts.parentClientId }];
+  }
   const is: Record<string, unknown> = { client: { is: clientIs } };
   if (opts.taxYear) is.taxYear = opts.taxYear;
   if (opts.assignedToId) is.assignedToId = opts.assignedToId;
