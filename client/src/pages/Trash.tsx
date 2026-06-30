@@ -15,7 +15,7 @@ function daysLeft(deletedAt?: string | null) {
 
 function formatDate(d?: string | null) {
   if (!d) return "-";
-  return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 export default function Trash() {

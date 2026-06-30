@@ -22,7 +22,7 @@ const STATUSES: EngagementStatus[] = [
 ];
 
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 export default function DueDates() {

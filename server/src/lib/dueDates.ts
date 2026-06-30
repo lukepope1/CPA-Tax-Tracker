@@ -22,7 +22,8 @@ function nthMonthAfterFYE(fyeMonth: number, taxYear: number, n: number, day = 15
   const totalMonth = fyeMonth + n; // 1-indexed month count from January of taxYear
   const yearOffset = Math.floor((totalMonth - 1) / 12);
   const month = ((totalMonth - 1) % 12) + 1;
-  return new Date(taxYear + yearOffset, month - 1, day);
+  // Use UTC midnight so the calendar date is unambiguous regardless of server TZ.
+  return new Date(Date.UTC(taxYear + yearOffset, month - 1, day));
 }
 
 /**
@@ -37,7 +38,7 @@ function nthMonthOfTaxYear(fyeMonth: number, taxYear: number, n: number, day = 1
   const totalMonth = startMonth + (n - 1);
   const yearOffset = Math.floor((totalMonth - 1) / 12);
   const month = ((totalMonth - 1) % 12) + 1;
-  return new Date(startYear + yearOffset, month - 1, day);
+  return new Date(Date.UTC(startYear + yearOffset, month - 1, day));
 }
 
 /**
