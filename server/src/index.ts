@@ -8,6 +8,7 @@ import dueDatesRouter from "./routes/dueDates";
 import timeEntriesRouter from "./routes/timeEntries";
 import dashboardRouter from "./routes/dashboard";
 import billingRouter from "./routes/billing";
+import exportRouter from "./routes/export";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -30,6 +31,7 @@ app.use("/api/due-dates", dueDatesRouter);
 app.use("/api/time-entries", timeEntriesRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/export", exportRouter);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

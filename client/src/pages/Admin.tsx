@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import { api } from "../lib/api";
 import { User } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
@@ -45,6 +46,26 @@ export default function Admin() {
       toast(`Rolled forward ${res.fromYear} → ${res.toYear}: ${res.created} created, ${res.skipped} already existed.`);
     },
     onError: (err: any) => toast(err.response?.data?.error || "Roll forward failed.", "error"),
+  });
+
+  const exportAll = useMutation({
+    mutationFn: async () => (await api.get("/export/all")).data as Record<string, any[]>,
+    onSuccess: (data) => {
+      const wb = XLSX.utils.book_new();
+      const sheets: [string, any[]][] = [
+        ["Clients", data.clients],
+        ["Returns", data.returns],
+        ["Due Dates", data.dueDates],
+        ["Time Entries", data.timeEntries],
+        ["Staff", data.staff],
+      ];
+      for (const [name, rows] of sheets) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows ?? []), name);
+      }
+      XLSX.writeFile(wb, `cpa-tax-tracker-backup-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast("Backup downloaded.");
+    },
+    onError: () => toast("Export failed.", "error"),
   });
 
   async function handleRollForward() {
@@ -115,7 +136,16 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Admin</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-gray-800">Admin</h1>
+        <button
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          onClick={() => exportAll.mutate()}
+          disabled={exportAll.isPending}
+        >
+          {exportAll.isPending ? "Exporting…" : "Export All Data (Backup)"}
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-1">Roll Forward Returns</h2>
