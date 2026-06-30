@@ -176,6 +176,16 @@ export default function ClientDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client", id] }),
   });
 
+  const updateDueDate = useMutation({
+    mutationFn: async ({ dueDateId, dueDate }: { dueDateId: string; dueDate: string }) =>
+      (await api.put(`/due-dates/${dueDateId}`, { dueDate })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["due-dates"] });
+      toast("Due date updated.");
+    },
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const jurisdictions: string[] = [];
@@ -566,7 +576,21 @@ export default function ClientDetail() {
                     .filter((dd) => !eng.extensionFiled || dd.type !== "ORIGINAL_FILING")
                     .map((dd) => (
                       <tr key={dd.id} className="border-b last:border-0">
-                        <td className="py-1 pr-4 whitespace-nowrap">{formatDate(dd.dueDate)}</td>
+                        <td className="py-1 pr-4 whitespace-nowrap">
+                          <input
+                            type="date"
+                            className="border border-gray-300 rounded px-2 py-0.5 text-sm"
+                            defaultValue={dd.dueDate.slice(0, 10)}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                updateDueDate.mutate({
+                                  dueDateId: dd.id,
+                                  dueDate: new Date(`${e.target.value}T00:00:00Z`).toISOString(),
+                                });
+                              }
+                            }}
+                          />
+                        </td>
                         <td className="py-1 pr-4">{DUE_DATE_TYPE_LABELS[dd.type]}</td>
                         <td className="py-1 pr-4">
                           <label className="flex items-center gap-1">

@@ -131,7 +131,7 @@ export default function DueDates() {
     families.sort((a, b) => a.earliest - b.earliest);
   }
 
-  function renderRow(d: DueDate, opts: { sub?: boolean } = {}) {
+  function renderRow(d: DueDate, opts: { sub?: boolean; rolledUp?: string[] } = {}) {
     const overdue = !d.completed && new Date(d.dueDate) < now;
     return (
       <tr key={d.id} className={`border-b last:border-0 hover:bg-gray-50 ${overdue ? "bg-red-50" : ""}`}>
@@ -144,6 +144,9 @@ export default function DueDates() {
         <td className={`py-2 px-4 whitespace-nowrap ${opts.sub ? "pl-8 text-gray-600" : ""}`}>
           {opts.sub && <span className="text-gray-400 mr-1">↳</span>}
           {d.engagement && engagementLabel(d.engagement)}
+          {opts.rolledUp && opts.rolledUp.length > 0 && (
+            <span className="ml-2 text-xs text-gray-400">+ {opts.rolledUp.join(", ")}</span>
+          )}
         </td>
         <td className="py-2 px-4 whitespace-nowrap">{DUE_DATE_TYPE_LABELS[d.type]}</td>
         <td className="py-2 px-4">
@@ -241,12 +244,27 @@ export default function DueDates() {
             {isLoading && (
               <tr><td colSpan={6}><Loading /></td></tr>
             )}
-            {families.map((fam) => (
-              <Fragment key={fam.key}>
-                {fam.federal.map((d) => renderRow(d))}
-                {[...fam.states.entries()].flatMap(([, rows]) => rows.map((d) => renderRow(d, { sub: true })))}
-              </Fragment>
-            ))}
+            {families.map((fam) => {
+              // Collapse a state/city due date when it matches the federal date
+              // for the same deadline type; only show ones that differ. A
+              // jurisdiction whose dates all match is noted on the federal row.
+              const dayKey = (s: string) => new Date(s).toISOString().slice(0, 10);
+              const fedDay = new Map<string, string>();
+              fam.federal.forEach((d) => fedDay.set(d.type, dayKey(d.dueDate)));
+              const rolledUp: string[] = [];
+              const stateRows: DueDate[] = [];
+              for (const [jurisdiction, rows] of fam.states) {
+                const differing = rows.filter((d) => fedDay.get(d.type) !== dayKey(d.dueDate));
+                if (differing.length === 0 && fam.federal.length > 0) rolledUp.push(jurisdiction);
+                else stateRows.push(...differing.length > 0 ? differing : rows);
+              }
+              return (
+                <Fragment key={fam.key}>
+                  {fam.federal.map((d, i) => renderRow(d, { rolledUp: i === 0 ? rolledUp : undefined }))}
+                  {stateRows.map((d) => renderRow(d, { sub: true }))}
+                </Fragment>
+              );
+            })}
             {dueDates && dueDates.length === 0 && (
               <tr><td colSpan={6}><EmptyState title="Nothing due" hint="No outstanding due dates for this filter." /></td></tr>
             )}
