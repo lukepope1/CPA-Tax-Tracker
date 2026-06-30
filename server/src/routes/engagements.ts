@@ -7,7 +7,7 @@ import { generateDueDates, FormType } from "../lib/dueDates";
 const router = Router();
 router.use(requireAuth);
 
-const FORM_TYPES = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990"] as const;
+const FORM_TYPES = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "SCH_E", "SCH_C", "OTHER"] as const;
 const STATUSES = [
   "NOT_STARTED",
   "INFORMATION_RECEIVED",
@@ -26,6 +26,7 @@ const engagementSchema = z.object({
   clientId: z.string().min(1),
   formType: z.enum(FORM_TYPES),
   jurisdiction: z.string().min(1).default("Federal"),
+  description: z.string().optional().nullable(),
   taxYear: z.number().int().min(2000).max(2100),
   fiscalYearEndMonth: z.number().int().min(1).max(12).default(12),
   fiscalYearEndDay: z.number().int().min(1).max(31).default(31),
@@ -37,6 +38,7 @@ const engagementSchema = z.object({
 const updateSchema = z.object({
   status: z.enum(STATUSES).optional(),
   extensionFiled: z.boolean().optional(),
+  description: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   projectedFee: z.number().nonnegative().optional().nullable(),
@@ -151,6 +153,7 @@ router.post("/", async (req, res) => {
       clientId: data.clientId,
       formType: data.formType,
       jurisdiction: data.jurisdiction,
+      description: data.description || null,
       taxYear: data.taxYear,
       fiscalYearEndMonth: data.fiscalYearEndMonth,
       fiscalYearEndDay: data.fiscalYearEndDay,
@@ -177,6 +180,7 @@ router.put("/:id", async (req, res) => {
     data: {
       status: data.status,
       extensionFiled: data.extensionFiled,
+      description: data.description === undefined ? undefined : data.description || null,
       assignedToId: data.assignedToId === undefined ? undefined : data.assignedToId || null,
       notes: data.notes,
       projectedFee: data.projectedFee,

@@ -1,4 +1,12 @@
-export type FormType = "FORM_1040" | "FORM_1065" | "FORM_1120S" | "FORM_1120" | "FORM_990";
+export type FormType =
+  | "FORM_1040"
+  | "FORM_1065"
+  | "FORM_1120S"
+  | "FORM_1120"
+  | "FORM_990"
+  | "SCH_E"
+  | "SCH_C"
+  | "OTHER";
 
 export type EngagementStatus =
   | "NOT_STARTED"
@@ -52,6 +60,9 @@ export const FORM_TYPE_LABELS: Record<FormType, string> = {
   FORM_1120S: "1120-S - S Corporation",
   FORM_1120: "1120 - C Corporation",
   FORM_990: "990 - Exempt Organization",
+  SCH_E: "Sch E",
+  SCH_C: "Sch C",
+  OTHER: "Other / Special Project",
 };
 
 export const DUE_DATE_TYPE_LABELS: Record<DueDateType, string> = {
@@ -136,9 +147,16 @@ export interface DueDate {
   engagement?: Engagement;
 }
 
-export function engagementLabel(e: { formType: FormType; taxYear: number; jurisdiction?: string | null }): string {
-  const base = `${FORM_TYPE_LABELS[e.formType]} (${e.taxYear})`;
-  return e.jurisdiction && e.jurisdiction !== "Federal" ? `${base} — ${e.jurisdiction}` : base;
+export function engagementLabel(e: {
+  formType: FormType;
+  taxYear: number;
+  jurisdiction?: string | null;
+  description?: string | null;
+}): string {
+  let base = `${FORM_TYPE_LABELS[e.formType]} (${e.taxYear})`;
+  if (e.jurisdiction && e.jurisdiction !== "Federal") base += ` — ${e.jurisdiction}`;
+  if (e.description) base += ` — ${e.description}`;
+  return base;
 }
 
 export interface Engagement {
@@ -147,6 +165,7 @@ export interface Engagement {
   client?: { id: string; name: string };
   formType: FormType;
   jurisdiction?: string;
+  description?: string | null;
   taxYear: number;
   fiscalYearEndMonth: number;
   fiscalYearEndDay: number;

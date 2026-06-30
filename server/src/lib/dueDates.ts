@@ -1,4 +1,12 @@
-export type FormType = "FORM_1040" | "FORM_1065" | "FORM_1120S" | "FORM_1120" | "FORM_990";
+export type FormType =
+  | "FORM_1040"
+  | "FORM_1065"
+  | "FORM_1120S"
+  | "FORM_1120"
+  | "FORM_990"
+  | "SCH_E"
+  | "SCH_C"
+  | "OTHER";
 
 export type DueDateType =
   | "ORIGINAL_FILING"
@@ -58,14 +66,21 @@ export function generateDueDates(
   const dates: GeneratedDueDate[] = [];
 
   switch (formType) {
-    case "FORM_1040": {
-      // Individuals are always calendar-year filers.
-      dates.push({ type: "ORIGINAL_FILING", dueDate: new Date(taxYear + 1, 3, 15) }); // Apr 15
-      dates.push({ type: "EXTENDED_FILING", dueDate: new Date(taxYear + 1, 9, 15) }); // Oct 15
-      dates.push({ type: "ESTIMATE_Q1", dueDate: new Date(taxYear, 3, 15) }); // Apr 15
-      dates.push({ type: "ESTIMATE_Q2", dueDate: new Date(taxYear, 5, 15) }); // Jun 15
-      dates.push({ type: "ESTIMATE_Q3", dueDate: new Date(taxYear, 8, 15) }); // Sep 15
-      dates.push({ type: "ESTIMATE_Q4", dueDate: new Date(taxYear + 1, 0, 15) }); // Jan 15 next year
+    case "FORM_1040":
+    case "SCH_E":
+    case "SCH_C": {
+      // Filed on the individual 1040 — calendar-year, same deadlines.
+      dates.push({ type: "ORIGINAL_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 3, 15)) }); // Apr 15
+      dates.push({ type: "EXTENDED_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 9, 15)) }); // Oct 15
+      dates.push({ type: "ESTIMATE_Q1", dueDate: new Date(Date.UTC(taxYear, 3, 15)) }); // Apr 15
+      dates.push({ type: "ESTIMATE_Q2", dueDate: new Date(Date.UTC(taxYear, 5, 15)) }); // Jun 15
+      dates.push({ type: "ESTIMATE_Q3", dueDate: new Date(Date.UTC(taxYear, 8, 15)) }); // Sep 15
+      dates.push({ type: "ESTIMATE_Q4", dueDate: new Date(Date.UTC(taxYear + 1, 0, 15)) }); // Jan 15 next year
+      break;
+    }
+
+    case "OTHER": {
+      // Special projects / notices / amended — no standard deadline.
       break;
     }
 
@@ -110,6 +125,9 @@ export const FORM_TYPE_LABELS: Record<FormType, string> = {
   FORM_1120S: "1120-S - S Corporation",
   FORM_1120: "1120 - C Corporation",
   FORM_990: "990 - Exempt Organization",
+  SCH_E: "Sch E",
+  SCH_C: "Sch C",
+  OTHER: "Other / Special Project",
 };
 
 export const DUE_DATE_TYPE_LABELS: Record<DueDateType, string> = {

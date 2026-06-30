@@ -26,7 +26,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990"];
+const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "SCH_E", "SCH_C", "OTHER"];
 const STATUSES = ENGAGEMENT_STATUSES;
 
 function yearOptions() {
@@ -76,6 +76,7 @@ export default function ClientDetail() {
   const [editing, setEditing] = useState(false);
   const [edit, setEdit] = useState<Partial<Client>>({});
   const [formType, setFormType] = useState<FormType>("FORM_1040");
+  const [engDescription, setEngDescription] = useState("");
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [addFederal, setAddFederal] = useState(true);
   const [addState, setAddState] = useState(false);
@@ -102,6 +103,7 @@ export default function ClientDetail() {
           clientId: id,
           formType,
           jurisdiction,
+          description: engDescription || undefined,
           taxYear,
           fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
           fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
@@ -115,6 +117,7 @@ export default function ClientDetail() {
       setAddState(false);
       setAddCity(false);
       setCity("");
+      setEngDescription("");
       toast(`${count} return${count === 1 ? "" : "s"} added with due dates.`);
     },
   });
@@ -346,6 +349,15 @@ export default function ClientDetail() {
               ))}
             </select>
           </div>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+            <input
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              placeholder="e.g. amended MO, short-year, KY business license"
+              value={engDescription}
+              onChange={(e) => setEngDescription(e.target.value)}
+            />
+          </div>
 
           <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">Jurisdictions to create</label>
@@ -404,6 +416,7 @@ export default function ClientDetail() {
                   <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded ${eng.jurisdiction && eng.jurisdiction !== "Federal" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"}`}>
                     {eng.jurisdiction && eng.jurisdiction !== "Federal" ? eng.jurisdiction : "Federal"}
                   </span>
+                  {eng.description && <span className="ml-2 text-sm font-normal text-gray-500">— {eng.description}</span>}
                 </h3>
                 <div className="flex items-center gap-2">
                   <select

@@ -56,7 +56,8 @@ model Engagement {
   client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientId        String
   formType        String
-  jurisdiction    String            @default("Federal") // "Federal" or a US state name
+  jurisdiction    String            @default("Federal") // "Federal", a US state, or a city name
+  description     String?           // optional descriptor (e.g. "amended MO", "short-year", project notes)
   taxYear         Int
   fiscalYearEndMonth Int            @default(12)
   fiscalYearEndDay   Int            @default(31)
