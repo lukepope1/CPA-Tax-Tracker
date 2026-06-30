@@ -12,7 +12,13 @@ import billingRouter from "./routes/billing";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
+// CLIENT_ORIGIN may be a single URL or a comma-separated list of allowed origins
+// (e.g. the Render URL plus a custom domain).
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
