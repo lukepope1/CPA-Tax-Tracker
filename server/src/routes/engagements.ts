@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireAuth } from "../lib/auth";
-import { generateDueDates } from "../lib/dueDates";
+import { requireAuth, requireAdmin } from "../lib/auth";
+import { generateDueDates, FormType } from "../lib/dueDates";
 
 const router = Router();
 router.use(requireAuth);
@@ -41,6 +41,63 @@ const updateSchema = z.object({
   billed: z.boolean().optional(),
   billedDate: z.string().datetime().optional().nullable(),
   billedAmount: z.number().nonnegative().optional().nullable(),
+});
+
+// Admin: roll forward every return from one tax year to the next. For each
+// active return in `fromYear`, creates the equivalent return for fromYear+1
+// (same client / form / jurisdiction) with freshly generated due dates and a
+// reset status. Skips any that already exist. Billing fields start blank — last
+// year's billed amount/hours still auto-carry for comparison.
+router.post("/rollforward", requireAdmin, async (req, res) => {
+  const fromYear = Number(req.body.fromYear);
+  if (!fromYear || Number.isNaN(fromYear)) {
+    return res.status(400).json({ error: "A valid fromYear is required" });
+  }
+  const toYear = fromYear + 1;
+
+  const source = await prisma.engagement.findMany({
+    where: { taxYear: fromYear, client: { is: { deletedAt: null } } },
+  });
+
+  const existingNext = await prisma.engagement.findMany({
+    where: { taxYear: toYear },
+    select: { clientId: true, formType: true, jurisdiction: true },
+  });
+  const seen = new Set(existingNext.map((e) => `${e.clientId}|${e.formType}|${e.jurisdiction}`));
+
+  let created = 0;
+  let skipped = 0;
+  for (const eng of source) {
+    const key = `${eng.clientId}|${eng.formType}|${eng.jurisdiction}`;
+    if (seen.has(key)) {
+      skipped++;
+      continue;
+    }
+    const generated = generateDueDates(
+      eng.formType as FormType,
+      toYear,
+      eng.fiscalYearEndMonth,
+      eng.fiscalYearEndDay
+    );
+    await prisma.engagement.create({
+      data: {
+        clientId: eng.clientId,
+        formType: eng.formType,
+        jurisdiction: eng.jurisdiction,
+        taxYear: toYear,
+        fiscalYearEndMonth: eng.fiscalYearEndMonth,
+        fiscalYearEndDay: eng.fiscalYearEndDay,
+        status: "NOT_STARTED",
+        assignedToId: eng.assignedToId,
+        projectedFee: eng.projectedFee, // carry the engagement-letter fee forward as the starting projection
+        dueDates: { create: generated.map((d) => ({ type: d.type, dueDate: d.dueDate })) },
+      },
+    });
+    seen.add(key);
+    created++;
+  }
+
+  res.json({ fromYear, toYear, created, skipped });
 });
 
 router.get("/", async (req, res) => {

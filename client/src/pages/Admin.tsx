@@ -18,11 +18,45 @@ export default function Admin() {
   const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF");
   const [billableRate, setBillableRate] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [rollYear, setRollYear] = useState<string>("");
 
   const { data: users, isLoading } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => (await api.get("/auth/users")).data,
   });
+
+  const { data: taxYears } = useQuery<number[]>({
+    queryKey: ["due-dates", "tax-years"],
+    queryFn: async () => (await api.get("/due-dates/tax-years")).data,
+  });
+
+  const rollForward = useMutation({
+    mutationFn: async (fromYear: number) =>
+      (await api.post("/engagements/rollforward", { fromYear })).data as {
+        fromYear: number;
+        toYear: number;
+        created: number;
+        skipped: number;
+      },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["due-dates"] });
+      queryClient.invalidateQueries({ queryKey: ["client"] });
+      queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
+      toast(`Rolled forward ${res.fromYear} → ${res.toYear}: ${res.created} created, ${res.skipped} already existed.`);
+    },
+    onError: (err: any) => toast(err.response?.data?.error || "Roll forward failed.", "error"),
+  });
+
+  async function handleRollForward() {
+    if (!rollYear) return;
+    const from = Number(rollYear);
+    const ok = await confirm({
+      title: `Roll forward ${from} → ${from + 1}?`,
+      message: `This creates ${from + 1} returns for every active ${from} return (same client, form, and state), with fresh due dates and a reset status. Returns that already exist for ${from + 1} are skipped. Billing fields start blank; prior-year figures still carry forward for comparison.`,
+      confirmLabel: "Roll Forward",
+    });
+    if (ok) rollForward.mutate(from);
+  }
 
   const createUser = useMutation({
     mutationFn: async () =>
@@ -82,6 +116,37 @@ export default function Admin() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-gray-800">Admin</h1>
+
+      <div className="bg-white rounded-lg shadow p-4">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1">Roll Forward Returns</h2>
+        <p className="text-xs text-gray-400 mb-3">
+          Create next year's returns from an existing tax year — copies every active return (client, form, state) with fresh due
+          dates and a reset status. Returns that already exist for the next year are skipped.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Roll forward from tax year</label>
+            <select
+              className="border border-gray-300 rounded px-3 py-2 text-sm"
+              value={rollYear}
+              onChange={(e) => setRollYear(e.target.value)}
+            >
+              <option value="">Select a year…</option>
+              {taxYears?.map((y) => (
+                <option key={y} value={y}>{y} → {y + 1}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleRollForward}
+            disabled={!rollYear || rollForward.isPending}
+            className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50"
+          >
+            {rollForward.isPending ? "Rolling forward…" : "Roll Forward"}
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Add Staff Member</h2>
