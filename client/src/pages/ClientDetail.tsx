@@ -4,6 +4,8 @@ import { useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   Client,
+  CLIENT_TYPES,
+  ClientType,
   DUE_DATE_TYPE_LABELS,
   ENGAGEMENT_STATUS_LABELS,
   Engagement,
@@ -17,6 +19,11 @@ import {
 import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
 import { Loading } from "../components/ui";
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990"];
 const STATUSES: EngagementStatus[] = [
@@ -72,6 +79,8 @@ export default function ClientDetail() {
   const { prompt } = useDialog();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [edit, setEdit] = useState<Partial<Client>>({});
   const [formType, setFormType] = useState<FormType>("FORM_1040");
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [addFederal, setAddFederal] = useState(true);
@@ -116,6 +125,45 @@ export default function ClientDetail() {
     },
   });
 
+  const updateClient = useMutation({
+    mutationFn: async (data: Partial<Client>) => (await api.put(`/clients/${id}`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      setEditing(false);
+      toast("Client updated.");
+    },
+    onError: (err: any) => toast(err.response?.data?.error || "Could not update client.", "error"),
+  });
+
+  function startEditClient() {
+    if (!client) return;
+    setEdit({
+      name: client.name,
+      clientType: client.clientType,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      spouseName: client.spouseName,
+      clientCode: client.clientCode,
+      contactName: client.contactName,
+      contactEmail: client.contactEmail,
+      contactPhone: client.contactPhone,
+      fiscalYearEndMonth: client.fiscalYearEndMonth,
+      fiscalYearEndDay: client.fiscalYearEndDay,
+      notes: client.notes,
+    });
+    setEditing(true);
+  }
+
+  function saveClient(e: FormEvent) {
+    e.preventDefault();
+    const isIndividual = edit.clientType === "Individual" || edit.clientType === "Sch. E";
+    const composedName = isIndividual
+      ? `${edit.lastName ?? ""}, ${edit.firstName ?? ""}`.trim().replace(/^,\s*/, "").replace(/,\s*$/, "")
+      : edit.name;
+    updateClient.mutate({ ...edit, name: composedName || edit.name });
+  }
+
   const updateEngagement = useMutation({
     mutationFn: async ({ engagementId, data }: { engagementId: string; data: Partial<Engagement> }) =>
       (await api.put(`/engagements/${engagementId}`, data)).data,
@@ -145,16 +193,107 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-800">{client.name}</h1>
-        <p className="text-sm text-gray-500">
-          {client.clientCode && <>Code: {client.clientCode} &middot; </>}
-          {client.contactName && <>{client.contactName} &middot; </>}
-          {client.contactEmail && <>{client.contactEmail} &middot; </>}
-          {client.contactPhone && <>{client.contactPhone} &middot; </>}
-          FYE: {client.fiscalYearEndMonth}/{client.fiscalYearEndDay}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-800">{client.name}</h1>
+          <p className="text-sm text-gray-500">
+            {client.clientType && <>{client.clientType} &middot; </>}
+            {client.clientCode && <>Code: {client.clientCode} &middot; </>}
+            {client.contactName && <>{client.contactName} &middot; </>}
+            {client.contactEmail && <>{client.contactEmail} &middot; </>}
+            {client.contactPhone && <>{client.contactPhone} &middot; </>}
+            FYE: {MONTHS[client.fiscalYearEndMonth - 1]} {client.fiscalYearEndDay}
+          </p>
+        </div>
+        <button
+          className="shrink-0 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          onClick={() => (editing ? setEditing(false) : startEditClient())}
+        >
+          {editing ? "Cancel" : "Edit Client"}
+        </button>
       </div>
+
+      {editing && (
+        <form onSubmit={saveClient} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
+            <select
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              value={edit.clientType ?? "Corporation"}
+              onChange={(e) => setEdit({ ...edit, clientType: e.target.value as ClientType })}
+            >
+              {CLIENT_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+
+          {edit.clientType === "Individual" || edit.clientType === "Sch. E" ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.firstName ?? ""} onChange={(e) => setEdit({ ...edit, firstName: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.lastName ?? ""} onChange={(e) => setEdit({ ...edit, lastName: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Spouse Name</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.spouseName ?? ""} onChange={(e) => setEdit({ ...edit, spouseName: e.target.value })} />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+              <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
+            <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.clientCode ?? ""} onChange={(e) => setEdit({ ...edit, clientCode: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+            <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactName ?? ""} onChange={(e) => setEdit({ ...edit, contactName: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+            <input type="email" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactEmail ?? ""} onChange={(e) => setEdit({ ...edit, contactEmail: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+            <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">FYE Month</label>
+              <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.fiscalYearEndMonth ?? 12} onChange={(e) => setEdit({ ...edit, fiscalYearEndMonth: Number(e.target.value) })}>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+              <input type="number" min={1} max={31} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.fiscalYearEndDay ?? 31} onChange={(e) => setEdit({ ...edit, fiscalYearEndDay: Number(e.target.value) })} />
+            </div>
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea className="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows={2} value={edit.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+          </div>
+          <div className="md:col-span-3 flex gap-2">
+            <button type="submit" disabled={updateClient.isPending} className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50">
+              {updateClient.isPending ? "Saving…" : "Save Changes"}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} className="text-sm text-gray-500 hover:underline">
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-800">Engagements</h2>
