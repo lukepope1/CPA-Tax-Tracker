@@ -366,7 +366,7 @@ export default function Clients() {
           <thead>
             <tr className="text-gray-500 border-b bg-gray-50">
               <SortTh field="name" label="Name" sort={sort} />
-              <SortTh field="type" label="Type" sort={sort} />
+              <SortTh field="type" label="Type" sort={sort} className="whitespace-nowrap" />
               <SortTh field="code" label="Code" sort={sort} />
               <SortTh field="email" label="Contact Email" sort={sort} />
               <SortTh field="fye" label="Fiscal Year End" sort={sort} />
@@ -385,7 +385,7 @@ export default function Clients() {
                   <td className="py-2 px-4">
                     <Link to={`/clients/${c.id}`} className="text-brand-600 hover:underline font-medium">{c.name}</Link>
                   </td>
-                  <td className="py-2 px-4 text-gray-600">{c.clientType ?? "-"}</td>
+                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.clientType ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.clientCode ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.contactEmail ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{MONTHS[c.fiscalYearEndMonth - 1]} {c.fiscalYearEndDay}</td>
