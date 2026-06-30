@@ -182,6 +182,25 @@ export default function Clients() {
     },
   });
 
+  const [edit, setEdit] = useState<Client | null>(null);
+
+  const updateClient = useMutation({
+    mutationFn: async (c: Client) => {
+      const isInd = c.clientType === "Individual" || c.clientType === "Sch. E";
+      const name = isInd
+        ? `${c.lastName ?? ""}, ${c.firstName ?? ""}`.trim().replace(/^,\s*/, "").replace(/,\s*$/, "") || c.name
+        : c.name;
+      return (await api.put(`/clients/${c.id}`, { ...c, name })).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client"] });
+      setEdit(null);
+      toast("Client updated.");
+    },
+    onError: (err: any) => toast(err.response?.data?.error || "Could not update client.", "error"),
+  });
+
   async function handleDelete(c: Client) {
     const ok = await confirm({
       title: `Delete "${c.name}"?`,
@@ -390,7 +409,10 @@ export default function Clients() {
                   <td className="py-2 px-4 text-gray-600">{c.contactEmail ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{MONTHS[c.fiscalYearEndMonth - 1]} {c.fiscalYearEndDay}</td>
                   <td className="py-2 px-4 text-right text-gray-600">{c._count?.engagements ?? 0}</td>
-                  <td className="py-2 px-4 text-right">
+                  <td className="py-2 px-4 text-right whitespace-nowrap">
+                    <button className="text-brand-600 hover:underline mr-3" onClick={() => setEdit(c)}>
+                      Edit
+                    </button>
                     <button className="text-red-600 hover:underline" onClick={() => handleDelete(c)}>
                       Delete
                     </button>
@@ -404,6 +426,91 @@ export default function Clients() {
           </tbody>
         </table>
       </div>
+
+      {edit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onMouseDown={() => setEdit(null)}>
+          <form
+            className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out] grid grid-cols-1 md:grid-cols-2 gap-4"
+            onMouseDown={(e) => e.stopPropagation()}
+            onSubmit={(e) => { e.preventDefault(); updateClient.mutate(edit); }}
+          >
+            <div className="md:col-span-2 flex items-center justify-between">
+              <h3 className="font-heading text-lg font-semibold text-gray-800">Edit Client</h3>
+              <button type="button" className="text-gray-400 hover:text-gray-700" onClick={() => setEdit(null)}>✕</button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
+              <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.clientType ?? "Corporation"} onChange={(e) => setEdit({ ...edit, clientType: e.target.value as ClientType })}>
+                {CLIENT_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
+              </select>
+            </div>
+
+            {edit.clientType === "Individual" || edit.clientType === "Sch. E" ? (
+              <>
+                <div className="hidden md:block" />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                  <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.firstName ?? ""} onChange={(e) => setEdit({ ...edit, firstName: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                  <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.lastName ?? ""} onChange={(e) => setEdit({ ...edit, lastName: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Spouse Name</label>
+                  <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.spouseName ?? ""} onChange={(e) => setEdit({ ...edit, spouseName: e.target.value })} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} required />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
+              <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.clientCode ?? ""} onChange={(e) => setEdit({ ...edit, clientCode: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+              <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactName ?? ""} onChange={(e) => setEdit({ ...edit, contactName: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+              <input type="email" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactEmail ?? ""} onChange={(e) => setEdit({ ...edit, contactEmail: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+              <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">FYE Month</label>
+                <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.fiscalYearEndMonth} onChange={(e) => setEdit({ ...edit, fiscalYearEndMonth: Number(e.target.value) })}>
+                  {MONTHS.map((m, i) => (<option key={m} value={i + 1}>{m}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                <input type="number" min={1} max={31} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.fiscalYearEndDay} onChange={(e) => setEdit({ ...edit, fiscalYearEndDay: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <textarea className="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows={2} value={edit.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+            </div>
+
+            <div className="md:col-span-2 flex justify-end gap-2">
+              <button type="button" className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50" onClick={() => setEdit(null)}>Cancel</button>
+              <button type="submit" disabled={updateClient.isPending} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+                {updateClient.isPending ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
