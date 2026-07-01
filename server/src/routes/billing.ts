@@ -64,6 +64,34 @@ router.post("/bill", async (req, res) => {
   res.json({ billId: bill.id, billedReturns: engagements.length, amount });
 });
 
+// Bill a single return, or the client's General (no-return) time, on its own.
+router.post("/bill-engagement", async (req, res) => {
+  const clientId = String(req.body.clientId ?? "");
+  const engagementId = req.body.engagementId ? String(req.body.engagementId) : null;
+  const amount = Number(req.body.amount);
+  const note = req.body.note ? String(req.body.note) : null;
+  if (!clientId || Number.isNaN(amount) || amount < 0) {
+    return res.status(400).json({ error: "clientId and a valid amount are required" });
+  }
+
+  const bill = await prisma.bill.create({ data: { clientId, amount, note } });
+
+  if (engagementId) {
+    await prisma.engagement.update({
+      where: { id: engagementId },
+      data: { billed: true, billedAmount: amount, billedDate: bill.billedDate, billId: bill.id },
+    });
+  } else {
+    // General bucket — mark the client's unbilled no-return time to this bill.
+    await prisma.timeEntry.updateMany({
+      where: { clientId, engagementId: null, billId: null },
+      data: { billId: bill.id },
+    });
+  }
+
+  res.json({ billId: bill.id, amount });
+});
+
 // Billing history: every recorded bill, newest first.
 router.get("/history", async (_req, res) => {
   const bills = await prisma.bill.findMany({
@@ -103,20 +131,24 @@ router.get("/client/:clientId/bills", async (req, res) => {
           },
         },
       },
+      // General (no-return) time billed directly on this bill.
+      timeEntries: {
+        orderBy: { date: "asc" },
+        select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
+      },
     },
   });
 
   res.json(
     bills.map((b) => {
-      const timeEntries = b.engagements.flatMap((e) =>
-        e.timeEntries.map((t) => ({
-          date: t.date,
-          staff: t.user?.name ?? "",
-          hours: t.hours,
-          description: t.description,
-          value: t.hours * (t.rate ?? t.user?.billableRate ?? 0),
-        }))
-      );
+      const mapT = (t: { date: Date; hours: number; description: string; rate: number | null; user: { name: string; billableRate: number | null } | null }) => ({
+        date: t.date,
+        staff: t.user?.name ?? "",
+        hours: t.hours,
+        description: t.description,
+        value: t.hours * (t.rate ?? t.user?.billableRate ?? 0),
+      });
+      const timeEntries = [...b.engagements.flatMap((e) => e.timeEntries.map(mapT)), ...b.timeEntries.map(mapT)];
       const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
       const returns = b.engagements.map((e) => ({
         formType: e.formType,
@@ -181,6 +213,10 @@ router.delete("/bill/:id", async (req, res) => {
     where: { billId: req.params.id },
     data: { billed: false, billedAmount: null, billedDate: null, billId: null },
   });
+  await prisma.timeEntry.updateMany({
+    where: { billId: req.params.id },
+    data: { billId: null },
+  });
   await prisma.bill.delete({ where: { id: req.params.id } });
   res.status(204).send();
 });
@@ -199,7 +235,7 @@ router.get("/wip/:clientId/by-user", async (req, res) => {
   const entries = await prisma.timeEntry.findMany({
     where: {
       clientId,
-      OR: [{ engagementId: { in: engIds } }, { engagementId: null }],
+      OR: [{ engagementId: { in: engIds } }, { engagementId: null, billId: null }],
     },
     select: { hours: true, rate: true, user: { select: { id: true, name: true, billableRate: true } } },
   });
@@ -241,7 +277,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
   });
 
   const general = await prisma.timeEntry.findMany({
-    where: { clientId, engagementId: null },
+    where: { clientId, engagementId: null, billId: null },
     orderBy: { date: "asc" },
     select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
   });
@@ -376,9 +412,9 @@ router.get("/wip", async (_req, res) => {
           timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
         },
       },
-      // General time not tied to a return is always outstanding WIP.
+      // General time not tied to a return (and not yet billed) is outstanding WIP.
       timeEntries: {
-        where: { engagementId: null },
+        where: { engagementId: null, billId: null },
         select: { hours: true, rate: true, user: { select: { billableRate: true } } },
       },
     },

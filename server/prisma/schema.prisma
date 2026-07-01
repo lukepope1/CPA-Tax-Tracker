@@ -115,6 +115,7 @@ model Bill {
   createdAt   DateTime     @default(now())
 
   engagements Engagement[]
+  timeEntries TimeEntry[]
 
   @@index([clientId])
 }
@@ -158,9 +159,13 @@ model TimeEntry {
   description  String
   billable     Boolean     @default(true)
   rate         Float?      // optional per-entry rate override; falls back to the user's billable rate
+  // Links general (no-engagement) time to the bill it was included on.
+  bill         Bill?       @relation(fields: [billId], references: [id], onDelete: SetNull)
+  billId       String?
   createdAt    DateTime    @default(now())
 
   @@index([userId])
   @@index([clientId])
   @@index([date])
+  @@index([billId])
 }

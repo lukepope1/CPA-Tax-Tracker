@@ -134,6 +134,36 @@ export default function Billing() {
     onError: (err: any) => toast(err.response?.data?.error || "Could not bill this client.", "error"),
   });
 
+  const billGroup = useMutation({
+    mutationFn: async (v: { clientId: string; engagementId: string | null; amount: number }) =>
+      (await api.post("/billing/bill-engagement", v)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["billing-wip"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-wip-by-engagement"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
+      queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["client"] });
+      toast("Billed.");
+    },
+    onError: (err: any) => toast(err.response?.data?.error || "Could not bill.", "error"),
+  });
+
+  async function handleBillGroup(g: WipByEngagement) {
+    if (!detail) return;
+    const label = g.general ? "General / none" : engagementLabel(g);
+    const input = await prompt({
+      title: `Bill ${label}`,
+      message: `${detail.clientName} — WIP is ${currency(g.value)} (${g.hours.toFixed(1)} hrs). Enter the amount actually billed:`,
+      defaultValue: g.value.toFixed(2),
+      confirmLabel: "Bill",
+      numeric: true,
+    });
+    if (input === null) return;
+    const amount = Number(input);
+    if (Number.isNaN(amount) || amount < 0) return toast("Enter a valid amount.", "error");
+    billGroup.mutate({ clientId: detail.clientId, engagementId: g.engagementId, amount });
+  }
+
   async function handleBill(r: WipRow) {
     const input = await prompt({
       title: `Bill ${r.clientName}`,
@@ -367,12 +397,19 @@ export default function Billing() {
                 <>
                   {byEng.map((g) => (
                     <div key={g.engagementId ?? "general"} className="rounded-lg border border-gray-200">
-                      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-t-lg">
+                      <div className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 rounded-t-lg">
                         <span className="font-medium text-gray-800">
                           {g.general ? "General / none" : engagementLabel(g)}
                         </span>
-                        <span className="text-sm text-gray-600">
-                          {g.hours.toFixed(1)} hrs · {currency(g.value)}
+                        <span className="flex items-center gap-3 shrink-0">
+                          <span className="text-sm text-gray-600">{g.hours.toFixed(1)} hrs · {currency(g.value)}</span>
+                          <button
+                            className="bg-brand-600 text-white text-xs font-medium rounded px-3 py-1 hover:bg-brand-700 disabled:opacity-50"
+                            onClick={() => handleBillGroup(g)}
+                            disabled={billGroup.isPending}
+                          >
+                            Bill this
+                          </button>
                         </span>
                       </div>
                       <table className="w-full text-xs">
