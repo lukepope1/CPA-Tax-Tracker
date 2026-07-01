@@ -394,7 +394,7 @@ export default function Clients() {
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-gray-500 border-b bg-gray-50">
@@ -403,8 +403,8 @@ export default function Clients() {
               <SortTh field="code" label="Code" sort={sort} />
               <SortTh field="parent" label="Parent" sort={sort} className="whitespace-nowrap" />
               <SortTh field="email" label="Contact Email" sort={sort} />
-              <SortTh field="fye" label="Fiscal Year End" sort={sort} />
-              <SortTh field="engagements" label="Engagements" sort={sort} align="right" />
+              <SortTh field="fye" label="FYE" sort={sort} className="whitespace-nowrap" />
+              <SortTh field="engagements" label="Returns" sort={sort} align="right" />
               <th className="py-2 px-4"></th>
             </tr>
           </thead>
@@ -423,7 +423,7 @@ export default function Clients() {
                   <td className="py-2 px-4 text-gray-600">{c.clientCode ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.parent?.name ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.contactEmail ?? "-"}</td>
-                  <td className="py-2 px-4 text-gray-600">{MONTHS[c.fiscalYearEndMonth - 1]} {c.fiscalYearEndDay}</td>
+                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{MONTHS[c.fiscalYearEndMonth - 1].slice(0, 3)} {c.fiscalYearEndDay}</td>
                   <td className="py-2 px-4 text-right text-gray-600">{c._count?.engagements ?? 0}</td>
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     <button className="text-brand-600 hover:underline mr-3" onClick={() => setEdit(c)}>
