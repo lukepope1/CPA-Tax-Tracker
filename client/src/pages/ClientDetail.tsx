@@ -20,6 +20,7 @@ import {
 import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
+import { formatPhone } from "../lib/format";
 import { Loading } from "../components/ui";
 
 interface BillDetail {
@@ -253,7 +254,9 @@ export default function ClientDetail() {
             {client.clientCode && <>Code: {client.clientCode} &middot; </>}
             {client.contactName && <>{client.contactName} &middot; </>}
             {client.contactEmail && <>{client.contactEmail} &middot; </>}
-            {client.contactPhone && <>{client.contactPhone} &middot; </>}
+            {client.contactPhone && (
+              <>{client.contactPhone.replace(/\D/g, "").length === 10 ? formatPhone(client.contactPhone) : client.contactPhone} &middot; </>
+            )}
             FYE: {MONTHS[client.fiscalYearEndMonth - 1]} {client.fiscalYearEndDay}
           </p>
         </div>
@@ -316,7 +319,7 @@ export default function ClientDetail() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
-            <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: e.target.value })} />
+            <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: formatPhone(e.target.value) })} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>

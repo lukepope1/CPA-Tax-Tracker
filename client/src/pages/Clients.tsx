@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { api } from "../lib/api";
 import { Client, CLIENT_TYPES, ClientType } from "../lib/types";
+import { formatPhone } from "../lib/format";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
@@ -362,7 +363,7 @@ export default function Clients() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone (optional)</label>
-            <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="(555) 123-4567" />
+            <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={contactPhone} onChange={(e) => setContactPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -507,7 +508,7 @@ export default function Clients() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
-              <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: e.target.value })} />
+              <input type="tel" className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.contactPhone ?? ""} onChange={(e) => setEdit({ ...edit, contactPhone: formatPhone(e.target.value) })} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
