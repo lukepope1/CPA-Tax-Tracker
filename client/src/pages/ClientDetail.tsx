@@ -88,6 +88,7 @@ export default function ClientDetail() {
   const [edit, setEdit] = useState<Partial<Client>>({});
   const [formType, setFormType] = useState<FormType>("FORM_1040");
   const [engDescription, setEngDescription] = useState("");
+  const [setupEstimates, setSetupEstimates] = useState(true);
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [addFederal, setAddFederal] = useState(true);
   const [addState, setAddState] = useState(false);
@@ -127,9 +128,11 @@ export default function ClientDetail() {
         fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
       };
       const [first, ...rest] = jurisdictions;
-      const parent = (await api.post("/engagements", { ...base, jurisdiction: first })).data;
+      // Estimates go on the parent/first return only (per the checkbox); state
+      // and city sub-returns never generate their own estimates.
+      const parent = (await api.post("/engagements", { ...base, jurisdiction: first, includeEstimates: setupEstimates })).data;
       for (const jurisdiction of rest) {
-        await api.post("/engagements", { ...base, jurisdiction, parentEngagementId: parent.id });
+        await api.post("/engagements", { ...base, jurisdiction, parentEngagementId: parent.id, includeEstimates: false });
       }
       return jurisdictions.length;
     },
@@ -140,6 +143,7 @@ export default function ClientDetail() {
       setAddCity(false);
       setCity("");
       setEngDescription("");
+      setSetupEstimates(true);
       toast(`${count} return${count === 1 ? "" : "s"} added with due dates.`);
     },
   });
@@ -422,6 +426,10 @@ export default function ClientDetail() {
             </div>
           </div>
 
+          <label className="w-full flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={setupEstimates} onChange={(e) => setSetupEstimates(e.target.checked)} />
+            Set up estimated tax payment workflows (for returns that have estimates)
+          </label>
           <button type="submit" disabled={createEngagement.isPending} className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50">
             {createEngagement.isPending ? "Creating…" : "Create & Generate Due Dates"}
           </button>

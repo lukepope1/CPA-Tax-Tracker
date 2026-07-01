@@ -61,7 +61,8 @@ export function generateDueDates(
   formType: FormType,
   taxYear: number,
   fyeMonth: number,
-  fyeDay: number
+  fyeDay: number,
+  includeEstimates = true
 ): GeneratedDueDate[] {
   const dates: GeneratedDueDate[] = [];
 
@@ -72,10 +73,14 @@ export function generateDueDates(
       // Filed on the individual 1040 — calendar-year, same deadlines.
       dates.push({ type: "ORIGINAL_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 3, 15)) }); // Apr 15
       dates.push({ type: "EXTENDED_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 9, 15)) }); // Oct 15
-      dates.push({ type: "ESTIMATE_Q1", dueDate: new Date(Date.UTC(taxYear, 3, 15)) }); // Apr 15
-      dates.push({ type: "ESTIMATE_Q2", dueDate: new Date(Date.UTC(taxYear, 5, 15)) }); // Jun 15
-      dates.push({ type: "ESTIMATE_Q3", dueDate: new Date(Date.UTC(taxYear, 8, 15)) }); // Sep 15
-      dates.push({ type: "ESTIMATE_Q4", dueDate: new Date(Date.UTC(taxYear + 1, 0, 15)) }); // Jan 15 next year
+      if (includeEstimates) {
+        // Estimates set up while preparing this return are for the FOLLOWING tax
+        // year (a 2025 return's estimates are the 2026 estimates).
+        dates.push({ type: "ESTIMATE_Q1", dueDate: new Date(Date.UTC(taxYear + 1, 3, 15)) }); // Apr 15
+        dates.push({ type: "ESTIMATE_Q2", dueDate: new Date(Date.UTC(taxYear + 1, 5, 15)) }); // Jun 15
+        dates.push({ type: "ESTIMATE_Q3", dueDate: new Date(Date.UTC(taxYear + 1, 8, 15)) }); // Sep 15
+        dates.push({ type: "ESTIMATE_Q4", dueDate: new Date(Date.UTC(taxYear + 2, 0, 15)) }); // Jan 15
+      }
       break;
     }
 
@@ -99,12 +104,14 @@ export function generateDueDates(
       // Standard 6-month extension, except June 30 FYE corps get 7 months.
       const extensionMonths = fyeMonth === 6 && fyeDay === 30 ? 11 : 10;
       dates.push({ type: "EXTENDED_FILING", dueDate: nthMonthAfterFYE(fyeMonth, taxYear, extensionMonths) });
-      // Estimated payments due the 15th day of the 4th, 6th, 9th, and 12th
-      // months of the tax year.
-      dates.push({ type: "ESTIMATE_Q1", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 4) });
-      dates.push({ type: "ESTIMATE_Q2", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 6) });
-      dates.push({ type: "ESTIMATE_Q3", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 9) });
-      dates.push({ type: "ESTIMATE_Q4", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 12) });
+      if (includeEstimates) {
+        // Estimated payments due the 15th day of the 4th, 6th, 9th, and 12th
+        // months of the tax year.
+        dates.push({ type: "ESTIMATE_Q1", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 4) });
+        dates.push({ type: "ESTIMATE_Q2", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 6) });
+        dates.push({ type: "ESTIMATE_Q3", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 9) });
+        dates.push({ type: "ESTIMATE_Q4", dueDate: nthMonthOfTaxYear(fyeMonth, taxYear, 12) });
+      }
       break;
     }
 

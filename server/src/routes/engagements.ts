@@ -28,6 +28,7 @@ const engagementSchema = z.object({
   jurisdiction: z.string().min(1).default("Federal"),
   description: z.string().optional().nullable(),
   parentEngagementId: z.string().optional().nullable(),
+  includeEstimates: z.boolean().default(true),
   taxYear: z.number().int().min(2000).max(2100),
   fiscalYearEndMonth: z.number().int().min(1).max(12).default(12),
   fiscalYearEndDay: z.number().int().min(1).max(31).default(31),
@@ -85,7 +86,8 @@ router.post("/rollforward", requireAdmin, async (req, res) => {
       eng.formType as FormType,
       toYear,
       eng.fiscalYearEndMonth,
-      eng.fiscalYearEndDay
+      eng.fiscalYearEndDay,
+      !eng.jurisdiction || eng.jurisdiction === "Federal" // estimates only on federal returns
     );
     await prisma.engagement.create({
       data: {
@@ -202,7 +204,13 @@ router.post("/", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const data = parsed.data;
 
-  const generated = generateDueDates(data.formType, data.taxYear, data.fiscalYearEndMonth, data.fiscalYearEndDay);
+  const generated = generateDueDates(
+    data.formType,
+    data.taxYear,
+    data.fiscalYearEndMonth,
+    data.fiscalYearEndDay,
+    data.includeEstimates
+  );
 
   const status = data.status ?? "NOT_STARTED";
   const engagement = await prisma.engagement.create({
