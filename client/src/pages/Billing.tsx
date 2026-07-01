@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
+import { FormType, engagementLabel } from "../lib/types";
 
 interface WipRow {
   clientId: string;
@@ -17,11 +18,16 @@ interface WipRow {
   openEngagements: number;
 }
 
-interface WipByUser {
-  userId: string;
-  userName: string;
+interface WipByEngagement {
+  engagementId: string | null;
+  general: boolean;
+  formType: FormType;
+  taxYear: number;
+  jurisdiction: string | null;
+  description: string | null;
   hours: number;
   value: number;
+  entries: { date: string; staff: string; hours: number; value: number; description: string }[];
 }
 
 interface WipResponse {
@@ -109,9 +115,9 @@ export default function Billing() {
     if (ok) reverseBill.mutate(b.id);
   }
 
-  const { data: byUser, isLoading: byUserLoading } = useQuery<WipByUser[]>({
-    queryKey: ["billing-wip-by-user", detail?.clientId],
-    queryFn: async () => (await api.get(`/billing/wip/${detail!.clientId}/by-user`)).data,
+  const { data: byEng, isLoading: byEngLoading } = useQuery<WipByEngagement[]>({
+    queryKey: ["billing-wip-by-engagement", detail?.clientId],
+    queryFn: async () => (await api.get(`/billing/wip/${detail!.clientId}/by-engagement`)).data,
     enabled: !!detail,
   });
 
@@ -343,46 +349,61 @@ export default function Billing() {
           onMouseDown={() => setDetail(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out]"
+            className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out]"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-heading text-lg font-semibold text-gray-800">{detail.clientName}</h3>
-                <p className="text-xs text-gray-500">Outstanding WIP by employee</p>
+                <p className="text-xs text-gray-500">Outstanding WIP by return — each group is likely a separate bill</p>
               </div>
               <button className="text-gray-400 hover:text-gray-700" onClick={() => setDetail(null)}>✕</button>
             </div>
 
-            <div className="mt-4">
-              {byUserLoading ? (
+            <div className="mt-4 space-y-3">
+              {byEngLoading ? (
                 <Loading />
-              ) : byUser && byUser.length > 0 ? (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="py-2">Employee</th>
-                      <th className="py-2 text-right">Hours</th>
-                      <th className="py-2 text-right">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {byUser.map((u) => (
-                      <tr key={u.userId} className="border-b last:border-0">
-                        <td className="py-2 text-gray-800">{u.userName}</td>
-                        <td className="py-2 text-right text-gray-600">{u.hours.toFixed(1)}</td>
-                        <td className="py-2 text-right font-medium text-gray-800">{currency(u.value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t font-semibold text-gray-800">
-                      <td className="py-2">Total</td>
-                      <td className="py-2 text-right">{detail.wipHours.toFixed(1)}</td>
-                      <td className="py-2 text-right">{currency(detail.wipValue)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+              ) : byEng && byEng.length > 0 ? (
+                <>
+                  {byEng.map((g) => (
+                    <div key={g.engagementId ?? "general"} className="rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-t-lg">
+                        <span className="font-medium text-gray-800">
+                          {g.general ? "General / none" : engagementLabel(g)}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          {g.hours.toFixed(1)} hrs · {currency(g.value)}
+                        </span>
+                      </div>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-gray-400 border-b">
+                            <th className="py-1 px-3">Date</th>
+                            <th className="py-1 px-3">Staff</th>
+                            <th className="py-1 px-3 text-right">Hrs</th>
+                            <th className="py-1 px-3 text-right">Value</th>
+                            <th className="py-1 px-3">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.entries.map((t, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="py-1 px-3 whitespace-nowrap">{formatDate(t.date)}</td>
+                              <td className="py-1 px-3 whitespace-nowrap">{t.staff}</td>
+                              <td className="py-1 px-3 text-right">{t.hours.toFixed(1)}</td>
+                              <td className="py-1 px-3 text-right">{currency(t.value)}</td>
+                              <td className="py-1 px-3">{t.description || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                  <div className="flex justify-between px-1 pt-1 text-sm font-semibold text-gray-800">
+                    <span>Total</span>
+                    <span>{detail.wipHours.toFixed(1)} hrs · {currency(detail.wipValue)}</span>
+                  </div>
+                </>
               ) : (
                 <EmptyState title="No unbilled time" />
               )}

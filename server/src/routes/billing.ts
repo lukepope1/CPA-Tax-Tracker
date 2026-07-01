@@ -219,6 +219,78 @@ router.get("/wip/:clientId/by-user", async (req, res) => {
   res.json(rows);
 });
 
+// Outstanding WIP for a single client, broken down by return (engagement), with
+// General/no-return time as its own group and each group's time entries (incl.
+// descriptions) for billing. Each group is typically a separate bill.
+router.get("/wip/:clientId/by-engagement", async (req, res) => {
+  const clientId = req.params.clientId;
+
+  const engagements = await prisma.engagement.findMany({
+    where: { clientId, billed: false },
+    select: {
+      id: true,
+      formType: true,
+      taxYear: true,
+      jurisdiction: true,
+      description: true,
+      timeEntries: {
+        orderBy: { date: "asc" },
+        select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
+      },
+    },
+  });
+
+  const general = await prisma.timeEntry.findMany({
+    where: { clientId, engagementId: null },
+    orderBy: { date: "asc" },
+    select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
+  });
+
+  const mapEntries = (entries: typeof general) =>
+    entries.map((t) => ({
+      date: t.date,
+      staff: t.user?.name ?? "",
+      hours: t.hours,
+      value: t.hours * (t.rate ?? t.user?.billableRate ?? 0),
+      description: t.description,
+    }));
+
+  const groups = engagements
+    .filter((e) => e.timeEntries.length > 0)
+    .map((e) => {
+      const entries = mapEntries(e.timeEntries);
+      return {
+        engagementId: e.id,
+        general: false,
+        formType: e.formType,
+        taxYear: e.taxYear,
+        jurisdiction: e.jurisdiction,
+        description: e.description,
+        hours: entries.reduce((s, x) => s + x.hours, 0),
+        value: entries.reduce((s, x) => s + x.value, 0),
+        entries,
+      };
+    });
+
+  if (general.length > 0) {
+    const entries = mapEntries(general);
+    groups.push({
+      engagementId: null as any,
+      general: true,
+      formType: "" as any,
+      taxYear: 0 as any,
+      jurisdiction: null as any,
+      description: null as any,
+      hours: entries.reduce((s, x) => s + x.hours, 0),
+      value: entries.reduce((s, x) => s + x.value, 0),
+      entries,
+    });
+  }
+
+  groups.sort((a, b) => b.value - a.value);
+  res.json(groups);
+});
+
 // Firm-wide dashboard summary, optionally scoped to a single tax year.
 // Returns aggregate counts (total returns, by return type, by status) along
 // with total WIP, total billed, and overall realization.
