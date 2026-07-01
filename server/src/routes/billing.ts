@@ -83,6 +83,62 @@ router.get("/history", async (_req, res) => {
   );
 });
 
+// Detailed bill history for one client — each bill with the returns it covered
+// and the underlying time entries, for drill-down.
+router.get("/client/:clientId/bills", async (req, res) => {
+  const bills = await prisma.bill.findMany({
+    where: { clientId: req.params.clientId },
+    orderBy: { billedDate: "desc" },
+    include: {
+      engagements: {
+        select: {
+          formType: true,
+          jurisdiction: true,
+          description: true,
+          taxYear: true,
+          billedAmount: true,
+          timeEntries: {
+            orderBy: { date: "asc" },
+            select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  res.json(
+    bills.map((b) => {
+      const timeEntries = b.engagements.flatMap((e) =>
+        e.timeEntries.map((t) => ({
+          date: t.date,
+          staff: t.user?.name ?? "",
+          hours: t.hours,
+          description: t.description,
+          value: t.hours * (t.rate ?? t.user?.billableRate ?? 0),
+        }))
+      );
+      const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
+      const returns = b.engagements.map((e) => ({
+        formType: e.formType,
+        jurisdiction: e.jurisdiction,
+        description: e.description,
+        taxYear: e.taxYear,
+        billedAmount: e.billedAmount ?? 0,
+        hours: e.timeEntries.reduce((s, t) => s + t.hours, 0),
+      }));
+      return {
+        id: b.id,
+        amount: b.amount,
+        billedDate: b.billedDate,
+        note: b.note ?? "",
+        totalHours,
+        returns,
+        timeEntries,
+      };
+    })
+  );
+});
+
 // Edit a past bill: change the amount (redistributed across its returns), date,
 // or note.
 router.put("/bill/:id", async (req, res) => {

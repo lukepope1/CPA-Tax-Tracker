@@ -19,7 +19,18 @@ import {
 } from "../lib/types";
 import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/AuthContext";
 import { Loading } from "../components/ui";
+
+interface BillDetail {
+  id: string;
+  amount: number;
+  billedDate: string;
+  note: string;
+  totalHours: number;
+  returns: { formType: FormType; jurisdiction?: string | null; description?: string | null; taxYear: number; billedAmount: number; hours: number }[];
+  timeEntries: { date: string; staff: string; hours: number; description: string; value: number }[];
+}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -93,6 +104,14 @@ export default function ClientDetail() {
   const { data: users } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => (await api.get("/auth/users")).data,
+  });
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const { data: bills } = useQuery<BillDetail[]>({
+    queryKey: ["client-bills", id],
+    queryFn: async () => (await api.get(`/billing/client/${id}/bills`)).data,
+    enabled: !!id && isAdmin,
   });
 
   const createEngagement = useMutation({
@@ -680,6 +699,67 @@ export default function ClientDetail() {
           <p className="text-sm text-gray-500">No returns set up for this client yet.</p>
         )}
       </div>
+
+      {isAdmin && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800 mb-2">Billing History</h2>
+          {bills && bills.length > 0 ? (
+            <div className="space-y-3">
+              {bills.map((b) => (
+                <div key={b.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="font-semibold text-gray-800">
+                      {currency(b.amount)}{" "}
+                      <span className="font-normal text-gray-500">on {formatDate(b.billedDate)}</span>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {b.returns.length} return{b.returns.length === 1 ? "" : "s"} · {b.totalHours.toFixed(1)} hrs
+                    </div>
+                  </div>
+                  {b.note && <p className="mt-1 text-sm text-gray-600">Note: {b.note}</p>}
+
+                  <div className="mt-2 text-sm text-gray-600">
+                    <span className="text-gray-500">Covered: </span>
+                    {b.returns.map((r) => engagementLabel(r)).join("; ")}
+                  </div>
+
+                  {b.timeEntries.length > 0 && (
+                    <details className="mt-2 text-xs text-gray-500">
+                      <summary className="cursor-pointer hover:text-gray-700">
+                        Time detail ({b.timeEntries.length} entr{b.timeEntries.length === 1 ? "y" : "ies"})
+                      </summary>
+                      <table className="w-full mt-1">
+                        <thead>
+                          <tr className="text-left text-gray-400 border-b">
+                            <th className="py-1 pr-3">Date</th>
+                            <th className="py-1 pr-3">Staff</th>
+                            <th className="py-1 pr-3 text-right">Hrs</th>
+                            <th className="py-1 pr-3 text-right">Value</th>
+                            <th className="py-1">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {b.timeEntries.map((t, i) => (
+                            <tr key={i} className="border-b last:border-0">
+                              <td className="py-1 pr-3 whitespace-nowrap">{formatDate(t.date)}</td>
+                              <td className="py-1 pr-3 whitespace-nowrap">{t.staff}</td>
+                              <td className="py-1 pr-3 text-right">{t.hours.toFixed(1)}</td>
+                              <td className="py-1 pr-3 text-right">{currency(t.value)}</td>
+                              <td className="py-1">{t.description || "-"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No bills recorded for this client yet.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
