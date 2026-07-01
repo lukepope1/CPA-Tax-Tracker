@@ -89,6 +89,7 @@ export default function ClientDetail() {
   const [edit, setEdit] = useState<Partial<Client>>({});
   const [formType, setFormType] = useState<FormType>("FORM_1040");
   const [engDescription, setEngDescription] = useState("");
+  const [otherDueDate, setOtherDueDate] = useState("");
   const [setupEstimates, setSetupEstimates] = useState(true);
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [addFederal, setAddFederal] = useState(true);
@@ -127,6 +128,10 @@ export default function ClientDetail() {
         taxYear,
         fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
         fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
+        dueDate:
+          formType === "OTHER" && otherDueDate
+            ? new Date(`${otherDueDate}T00:00:00Z`).toISOString()
+            : undefined,
       };
       const [first, ...rest] = jurisdictions;
       // Estimates go on the parent/first return only (per the checkbox); state
@@ -144,6 +149,7 @@ export default function ClientDetail() {
       setAddCity(false);
       setCity("");
       setEngDescription("");
+      setOtherDueDate("");
       setSetupEstimates(true);
       toast(`${count} return${count === 1 ? "" : "s"} added with due dates.`);
     },
@@ -387,6 +393,18 @@ export default function ClientDetail() {
               onChange={(e) => setEngDescription(e.target.value)}
             />
           </div>
+          {formType === "OTHER" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
+              <input
+                type="date"
+                className="border border-gray-300 rounded px-3 py-2 text-sm"
+                value={otherDueDate}
+                onChange={(e) => setOtherDueDate(e.target.value)}
+              />
+              <p className="text-xs text-gray-400 mt-1">Leave blank for ongoing projects with no deadline.</p>
+            </div>
+          )}
 
           <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">Jurisdictions to create</label>

@@ -29,6 +29,7 @@ const engagementSchema = z.object({
   description: z.string().optional().nullable(),
   parentEngagementId: z.string().optional().nullable(),
   includeEstimates: z.boolean().default(true),
+  dueDate: z.string().datetime().optional().nullable(), // optional manual deadline (Other/Special Project)
   taxYear: z.number().int().min(2000).max(2100),
   fiscalYearEndMonth: z.number().int().min(1).max(12).default(12),
   fiscalYearEndDay: z.number().int().min(1).max(31).default(31),
@@ -211,6 +212,12 @@ router.post("/", async (req, res) => {
     data.fiscalYearEndDay,
     data.includeEstimates
   );
+
+  // "Other / Special Project" returns have no standard deadline; allow an
+  // optional manual due date (ongoing consulting projects can be left blank).
+  if (data.formType === "OTHER" && data.dueDate) {
+    generated.push({ type: "ORIGINAL_FILING", dueDate: new Date(data.dueDate) });
+  }
 
   const status = data.status ?? "NOT_STARTED";
   const engagement = await prisma.engagement.create({
