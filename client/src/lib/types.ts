@@ -4,6 +4,8 @@ export type FormType =
   | "FORM_1120S"
   | "FORM_1120"
   | "FORM_990"
+  | "FORM_709"
+  | "FORM_706"
   | "SCH_E"
   | "SCH_C"
   | "OTHER";
@@ -60,6 +62,8 @@ export const FORM_TYPE_LABELS: Record<FormType, string> = {
   FORM_1120S: "1120-S - S Corporation",
   FORM_1120: "1120 - C Corporation",
   FORM_990: "990 - Exempt Organization",
+  FORM_709: "709 - Gift Tax",
+  FORM_706: "706 - Estate Tax",
   SCH_E: "Sch E",
   SCH_C: "Sch C",
   OTHER: "Other / Special Project",

@@ -4,6 +4,8 @@ export type FormType =
   | "FORM_1120S"
   | "FORM_1120"
   | "FORM_990"
+  | "FORM_709"
+  | "FORM_706"
   | "SCH_E"
   | "SCH_C"
   | "OTHER";
@@ -84,8 +86,18 @@ export function generateDueDates(
       break;
     }
 
+    case "FORM_709": {
+      // Gift tax return — due Apr 15 of the following year (extends to Oct 15).
+      dates.push({ type: "ORIGINAL_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 3, 15)) });
+      dates.push({ type: "EXTENDED_FILING", dueDate: new Date(Date.UTC(taxYear + 1, 9, 15)) });
+      break;
+    }
+
+    case "FORM_706":
     case "OTHER": {
-      // Special projects / notices / amended — no standard deadline.
+      // 706 estate returns are due 9 months after date of death (not tracked
+      // here); special projects have no standard deadline. Both use an optional
+      // manual due date instead.
       break;
     }
 
@@ -132,6 +144,8 @@ export const FORM_TYPE_LABELS: Record<FormType, string> = {
   FORM_1120S: "1120-S - S Corporation",
   FORM_1120: "1120 - C Corporation",
   FORM_990: "990 - Exempt Organization",
+  FORM_709: "709 - Gift Tax",
+  FORM_706: "706 - Estate Tax",
   SCH_E: "Sch E",
   SCH_C: "Sch C",
   OTHER: "Other / Special Project",

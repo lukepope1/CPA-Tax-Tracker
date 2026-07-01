@@ -13,7 +13,7 @@ interface FirmSummary {
   realization: number | null;
 }
 
-const FORM_ORDER: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "SCH_E", "SCH_C", "OTHER"];
+const FORM_ORDER: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "FORM_709", "FORM_706", "SCH_E", "SCH_C", "OTHER"];
 const STATUS_ORDER = ENGAGEMENT_STATUSES;
 
 function currency(n: number) {

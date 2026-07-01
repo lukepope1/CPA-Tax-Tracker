@@ -7,7 +7,7 @@ import { generateDueDates, FormType } from "../lib/dueDates";
 const router = Router();
 router.use(requireAuth);
 
-const FORM_TYPES = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "SCH_E", "SCH_C", "OTHER"] as const;
+const FORM_TYPES = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "FORM_709", "FORM_706", "SCH_E", "SCH_C", "OTHER"] as const;
 const STATUSES = [
   "NOT_STARTED",
   "INFORMATION_RECEIVED",
@@ -213,9 +213,9 @@ router.post("/", async (req, res) => {
     data.includeEstimates
   );
 
-  // "Other / Special Project" returns have no standard deadline; allow an
-  // optional manual due date (ongoing consulting projects can be left blank).
-  if (data.formType === "OTHER" && data.dueDate) {
+  // 706 estate and "Other / Special Project" returns have no standard deadline;
+  // allow an optional manual due date (ongoing projects can be left blank).
+  if ((data.formType === "OTHER" || data.formType === "FORM_706") && data.dueDate) {
     generated.push({ type: "ORIGINAL_FILING", dueDate: new Date(data.dueDate) });
   }
 

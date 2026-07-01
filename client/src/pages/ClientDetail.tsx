@@ -38,7 +38,7 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "SCH_E", "SCH_C", "OTHER"];
+const FORM_TYPES: FormType[] = ["FORM_1040", "FORM_1065", "FORM_1120S", "FORM_1120", "FORM_990", "FORM_709", "FORM_706", "SCH_E", "SCH_C", "OTHER"];
 const STATUSES = ENGAGEMENT_STATUSES;
 
 function yearOptions() {
@@ -129,7 +129,7 @@ export default function ClientDetail() {
         fiscalYearEndMonth: client?.fiscalYearEndMonth ?? 12,
         fiscalYearEndDay: client?.fiscalYearEndDay ?? 31,
         dueDate:
-          formType === "OTHER" && otherDueDate
+          (formType === "OTHER" || formType === "FORM_706") && otherDueDate
             ? new Date(`${otherDueDate}T00:00:00Z`).toISOString()
             : undefined,
       };
@@ -393,7 +393,7 @@ export default function ClientDetail() {
               onChange={(e) => setEngDescription(e.target.value)}
             />
           </div>
-          {formType === "OTHER" && (
+          {(formType === "OTHER" || formType === "FORM_706") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
               <input
@@ -402,7 +402,9 @@ export default function ClientDetail() {
                 value={otherDueDate}
                 onChange={(e) => setOtherDueDate(e.target.value)}
               />
-              <p className="text-xs text-gray-400 mt-1">Leave blank for ongoing projects with no deadline.</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {formType === "FORM_706" ? "706 is due 9 months after date of death — enter it here." : "Leave blank for ongoing projects with no deadline."}
+              </p>
             </div>
           )}
 
