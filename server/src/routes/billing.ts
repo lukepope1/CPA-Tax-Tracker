@@ -5,12 +5,35 @@ import { requireAuth, requireAdmin } from "../lib/auth";
 const router = Router();
 router.use(requireAuth, requireAdmin);
 
-// Bill a client's outstanding WIP. Marks all of the client's unbilled returns
-// as billed and distributes the entered amount across them in proportion to each
-// return's WIP value, so per-return realization stays meaningful.
+const valueOf = (entries: { hours: number; rate: number | null; user: { billableRate: number | null } | null }[]) =>
+  entries.reduce((s, t) => s + t.hours * (t.rate ?? t.user?.billableRate ?? 0), 0);
+
+// Distributes `amount` across returns proportionally to each return's WIP value,
+// with the rounding remainder on the last one so the total matches to the penny.
+function distribute(items: { id: string; wip: number }[], amount: number): Map<string, number> {
+  const totalWip = items.reduce((s, w) => s + w.wip, 0);
+  const out = new Map<string, number>();
+  let allocated = 0;
+  items.forEach((w, i) => {
+    let amt: number;
+    if (i === items.length - 1) {
+      amt = Math.round((amount - allocated) * 100) / 100;
+    } else {
+      const share = totalWip > 0 ? amount * (w.wip / totalWip) : amount / items.length;
+      amt = Math.round(share * 100) / 100;
+      allocated += amt;
+    }
+    out.set(w.id, amt);
+  });
+  return out;
+}
+
+// Bill a client's outstanding WIP. Creates a Bill record, links the client's
+// unbilled returns to it, and distributes the entered amount across them.
 router.post("/bill", async (req, res) => {
   const clientId = String(req.body.clientId ?? "");
   const amount = Number(req.body.amount);
+  const note = req.body.note ? String(req.body.note) : null;
   if (!clientId || Number.isNaN(amount) || amount < 0) {
     return res.status(400).json({ error: "clientId and a valid amount are required" });
   }
@@ -26,31 +49,84 @@ router.post("/bill", async (req, res) => {
     return res.status(400).json({ error: "No unbilled returns for this client" });
   }
 
-  const valueOf = (entries: { hours: number; rate: number | null; user: { billableRate: number | null } | null }[]) =>
-    entries.reduce((s, t) => s + t.hours * (t.rate ?? t.user?.billableRate ?? 0), 0);
+  const bill = await prisma.bill.create({ data: { clientId, amount, note } });
+  const alloc = distribute(engagements.map((e) => ({ id: e.id, wip: valueOf(e.timeEntries) })), amount);
 
-  const wips = engagements.map((e) => ({ id: e.id, wip: valueOf(e.timeEntries) }));
-  const totalWip = wips.reduce((s, w) => s + w.wip, 0);
-  const now = new Date();
+  await prisma.$transaction(
+    engagements.map((e) =>
+      prisma.engagement.update({
+        where: { id: e.id },
+        data: { billed: true, billedDate: bill.billedDate, billedAmount: alloc.get(e.id) ?? 0, billId: bill.id },
+      })
+    )
+  );
 
-  let allocated = 0;
-  const updates = wips.map((w, i) => {
-    let amt: number;
-    if (i === wips.length - 1) {
-      amt = Math.round((amount - allocated) * 100) / 100; // remainder avoids rounding drift
-    } else {
-      const share = totalWip > 0 ? amount * (w.wip / totalWip) : amount / wips.length;
-      amt = Math.round(share * 100) / 100;
-      allocated += amt;
-    }
-    return prisma.engagement.update({
-      where: { id: w.id },
-      data: { billed: true, billedDate: now, billedAmount: amt },
-    });
+  res.json({ billId: bill.id, billedReturns: engagements.length, amount });
+});
+
+// Billing history: every recorded bill, newest first.
+router.get("/history", async (_req, res) => {
+  const bills = await prisma.bill.findMany({
+    include: { client: { select: { name: true } }, _count: { select: { engagements: true } } },
+    orderBy: { billedDate: "desc" },
+  });
+  res.json(
+    bills.map((b) => ({
+      id: b.id,
+      clientId: b.clientId,
+      clientName: b.client.name,
+      amount: b.amount,
+      billedDate: b.billedDate,
+      note: b.note ?? "",
+      returns: b._count.engagements,
+    }))
+  );
+});
+
+// Edit a past bill: change the amount (redistributed across its returns), date,
+// or note.
+router.put("/bill/:id", async (req, res) => {
+  const bill = await prisma.bill.findUnique({
+    where: { id: req.params.id },
+    include: { engagements: { select: { id: true, timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } } } } },
+  });
+  if (!bill) return res.status(404).json({ error: "Bill not found" });
+
+  const amount = req.body.amount !== undefined ? Number(req.body.amount) : undefined;
+  const note = req.body.note !== undefined ? String(req.body.note) || null : undefined;
+  const billedDate = req.body.billedDate ? new Date(String(req.body.billedDate)) : undefined;
+
+  const updated = await prisma.bill.update({
+    where: { id: bill.id },
+    data: {
+      amount: amount !== undefined && !Number.isNaN(amount) ? amount : undefined,
+      note,
+      billedDate,
+    },
   });
 
-  await prisma.$transaction(updates);
-  res.json({ billedReturns: engagements.length, amount });
+  // Redistribute the (possibly new) amount + date across the bill's returns.
+  const alloc = distribute(bill.engagements.map((e) => ({ id: e.id, wip: valueOf(e.timeEntries) })), updated.amount);
+  await prisma.$transaction(
+    bill.engagements.map((e) =>
+      prisma.engagement.update({
+        where: { id: e.id },
+        data: { billedAmount: alloc.get(e.id) ?? 0, billedDate: updated.billedDate },
+      })
+    )
+  );
+
+  res.json({ id: updated.id, amount: updated.amount });
+});
+
+// Reverse a bill: un-bill its returns (back to WIP) and delete the bill.
+router.delete("/bill/:id", async (req, res) => {
+  await prisma.engagement.updateMany({
+    where: { billId: req.params.id },
+    data: { billed: false, billedAmount: null, billedDate: null, billId: null },
+  });
+  await prisma.bill.delete({ where: { id: req.params.id } });
+  res.status(204).send();
 });
 
 // Outstanding WIP for a single client, broken down by employee. Counts time on

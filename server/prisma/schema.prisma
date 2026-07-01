@@ -55,6 +55,7 @@ model Client {
 
   engagements Engagement[]
   timeEntries TimeEntry[]
+  bills       Bill[]
 }
 
 model Engagement {
@@ -90,6 +91,10 @@ model Engagement {
   parentEngagement   Engagement?    @relation("EngagementHierarchy", fields: [parentEngagementId], references: [id], onDelete: Cascade)
   subEngagements     Engagement[]   @relation("EngagementHierarchy")
 
+  // Links a return to the bill it was included on (null = unbilled).
+  bill          Bill?          @relation(fields: [billId], references: [id], onDelete: SetNull)
+  billId        String?
+
   dueDates      DueDate[]
   timeEntries   TimeEntry[]
   statusChanges StatusChange[]
@@ -97,6 +102,21 @@ model Engagement {
   @@index([clientId])
   @@index([taxYear])
   @@index([parentEngagementId])
+  @@index([billId])
+}
+
+model Bill {
+  id          String       @id @default(cuid())
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String
+  amount      Float
+  billedDate  DateTime     @default(now())
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  engagements Engagement[]
+
+  @@index([clientId])
 }
 
 model StatusChange {

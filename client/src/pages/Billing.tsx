@@ -29,6 +29,20 @@ interface WipResponse {
   totals: { wipHours: number; wipValue: number; billedTotal: number };
 }
 
+interface BillRow {
+  id: string;
+  clientId: string;
+  clientName: string;
+  amount: number;
+  billedDate: string;
+  note: string;
+  returns: number;
+}
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
 function currency(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
@@ -36,12 +50,64 @@ function currency(n: number) {
 export default function Billing() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { prompt } = useDialog();
+  const { prompt, confirm } = useDialog();
+  const [view, setView] = useState<"outstanding" | "billed">("outstanding");
   const [detail, setDetail] = useState<WipRow | null>(null);
   const { data, isLoading } = useQuery<WipResponse>({
     queryKey: ["billing-wip"],
     queryFn: async () => (await api.get("/billing/wip")).data,
   });
+
+  const { data: history, isLoading: historyLoading } = useQuery<BillRow[]>({
+    queryKey: ["billing-history"],
+    queryFn: async () => (await api.get("/billing/history")).data,
+    enabled: view === "billed",
+  });
+
+  const editBill = useMutation({
+    mutationFn: async ({ id, amount }: { id: string; amount: number }) =>
+      (await api.put(`/billing/bill/${id}`, { amount })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-wip"] });
+      queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
+      toast("Bill updated.");
+    },
+  });
+
+  const reverseBill = useMutation({
+    mutationFn: async (id: string) => api.delete(`/billing/bill/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-wip"] });
+      queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
+      toast("Bill reversed — returns sent back to WIP.");
+    },
+  });
+
+  async function handleEditBill(b: BillRow) {
+    const input = await prompt({
+      title: `Edit bill — ${b.clientName}`,
+      message: `Billed ${formatDate(b.billedDate)} across ${b.returns} return(s). Enter the corrected amount:`,
+      defaultValue: b.amount.toFixed(2),
+      confirmLabel: "Save",
+      numeric: true,
+    });
+    if (input === null) return;
+    const amount = Number(input);
+    if (Number.isNaN(amount) || amount < 0) return toast("Enter a valid amount.", "error");
+    editBill.mutate({ id: b.id, amount });
+  }
+
+  async function handleReverseBill(b: BillRow) {
+    const ok = await confirm({
+      title: `Reverse this bill?`,
+      message: `${b.clientName} — ${currency(b.amount)} on ${formatDate(b.billedDate)}. Its ${b.returns} return(s) go back to outstanding WIP. This deletes the bill record.`,
+      confirmLabel: "Reverse bill",
+      tone: "danger",
+    });
+    if (ok) reverseBill.mutate(b.id);
+  }
 
   const { data: byUser, isLoading: byUserLoading } = useQuery<WipByUser[]>({
     queryKey: ["billing-wip-by-user", detail?.clientId],
@@ -54,6 +120,7 @@ export default function Billing() {
       (await api.post("/billing/bill", { clientId, amount })).data,
     onSuccess: (_res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["billing-wip"] });
+      queryClient.invalidateQueries({ queryKey: ["billing-history"] });
       queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
       queryClient.invalidateQueries({ queryKey: ["client"] });
       toast(`Billed ${vars.clientName} ${currency(vars.amount)}.`);
@@ -111,20 +178,33 @@ export default function Billing() {
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Billing</h1>
           <p className="text-sm text-gray-500">
-            Outstanding WIP (work in progress) — the standard value of logged time not yet billed, by client.
-            Time on returns marked "Billed" is excluded.
+            {view === "outstanding"
+              ? "Outstanding WIP (work in progress) — the standard value of logged time not yet billed, by client."
+              : "Billing history — every recorded bill. Edit an amount or reverse a bill back to WIP."}
           </p>
         </div>
-        <button
-          className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded px-4 py-2 hover:bg-gray-50 disabled:opacity-50"
-          onClick={exportExcel}
-          disabled={!data || data.rows.length === 0}
-        >
-          Export to Excel
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            className="border border-gray-300 rounded px-3 py-2 text-sm"
+            value={view}
+            onChange={(e) => setView(e.target.value as "outstanding" | "billed")}
+          >
+            <option value="outstanding">Outstanding</option>
+            <option value="billed">Billed (history)</option>
+          </select>
+          {view === "outstanding" && (
+            <button
+              className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded px-4 py-2 hover:bg-gray-50 disabled:opacity-50"
+              onClick={exportExcel}
+              disabled={!data || data.rows.length === 0}
+            >
+              Export to Excel
+            </button>
+          )}
+        </div>
       </div>
 
-      {data && (
+      {view === "outstanding" && data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Total Outstanding WIP</div>
@@ -141,6 +221,7 @@ export default function Billing() {
         </div>
       )}
 
+      {view === "outstanding" && (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -214,6 +295,47 @@ export default function Billing() {
           )}
         </table>
       </div>
+      )}
+
+      {view === "billed" && (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="py-2 px-4">Date</th>
+                <th className="py-2 px-4">Client</th>
+                <th className="py-2 px-4 text-right">Amount</th>
+                <th className="py-2 px-4 text-right">Returns</th>
+                <th className="py-2 px-4">Note</th>
+                <th className="py-2 px-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyLoading && (
+                <tr><td colSpan={6}><Loading /></td></tr>
+              )}
+              {history?.map((b) => (
+                <tr key={b.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="py-2 px-4 whitespace-nowrap">{formatDate(b.billedDate)}</td>
+                  <td className="py-2 px-4">
+                    <Link to={`/clients/${b.clientId}`} className="text-brand-600 hover:underline font-medium">{b.clientName}</Link>
+                  </td>
+                  <td className="py-2 px-4 text-right font-medium text-gray-800">{currency(b.amount)}</td>
+                  <td className="py-2 px-4 text-right text-gray-600">{b.returns}</td>
+                  <td className="py-2 px-4 text-gray-600">{b.note || "-"}</td>
+                  <td className="py-2 px-4 text-right whitespace-nowrap">
+                    <button className="text-brand-600 hover:underline mr-3" onClick={() => handleEditBill(b)}>Edit</button>
+                    <button className="text-red-600 hover:underline" onClick={() => handleReverseBill(b)}>Reverse</button>
+                  </td>
+                </tr>
+              ))}
+              {history && history.length === 0 && (
+                <tr><td colSpan={6}><EmptyState title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {detail && (
         <div
