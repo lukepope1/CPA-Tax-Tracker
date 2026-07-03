@@ -30,7 +30,9 @@ function engagementFilter(opts: { taxYear?: number; assignedToId?: string; statu
   const is: Record<string, unknown> = { client: { is: clientIs } };
   if (opts.taxYear) is.taxYear = opts.taxYear;
   if (opts.assignedToId) is.assignedToId = opts.assignedToId;
+  // Hide returns marked Completed unless the user explicitly filters by a status.
   if (opts.status) is.status = opts.status;
+  else is.status = { not: "COMPLETED" };
   return { is };
 }
 
