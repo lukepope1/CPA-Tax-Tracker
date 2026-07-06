@@ -109,6 +109,11 @@ export default function ClientDetail() {
     queryFn: async () => (await api.get("/auth/users")).data,
   });
 
+  const { data: allClients } = useQuery<Client[]>({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data,
+  });
+
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const { data: bills } = useQuery<BillDetail[]>({
@@ -181,6 +186,7 @@ export default function ClientDetail() {
       fiscalYearEndMonth: client.fiscalYearEndMonth,
       fiscalYearEndDay: client.fiscalYearEndDay,
       notes: client.notes,
+      parentId: client.parentId,
     });
     setEditing(true);
   }
@@ -314,6 +320,15 @@ export default function ClientDetail() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Code</label>
             <input className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.clientCode ?? ""} onChange={(e) => setEdit({ ...edit, clientCode: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Client</label>
+            <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.parentId ?? ""} onChange={(e) => setEdit({ ...edit, parentId: e.target.value || null })}>
+              <option value="">None</option>
+              {allClients?.filter((c) => c.id !== client.id).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
