@@ -128,8 +128,8 @@ export default function Clients() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: clients, isLoading } = useQuery<Client[]>({
-    queryKey: ["clients", search],
-    queryFn: async () => (await api.get("/clients", { params: search ? { q: search } : undefined })).data,
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data,
   });
 
   const isIndividual = clientType === "Individual" || clientType === "Sch. E";
@@ -249,7 +249,17 @@ export default function Clients() {
     }
   }
 
-  const clientRows = (clients ?? []).map((c) => ({
+  const q = search.trim().toLowerCase();
+  const clientRows = (clients ?? [])
+    .filter(
+      (c) =>
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        (c.clientCode ?? "").toLowerCase().includes(q) ||
+        (c.parent?.name ?? "").toLowerCase().includes(q) ||
+        (c.contactName ?? "").toLowerCase().includes(q)
+    )
+    .map((c) => ({
     client: c,
     id: c.id,
     name: c.name,
