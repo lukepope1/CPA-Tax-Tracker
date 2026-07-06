@@ -139,6 +139,7 @@ export default function Billing() {
       queryClient.invalidateQueries({ queryKey: ["billing-history"] });
       queryClient.invalidateQueries({ queryKey: ["firm-summary"] });
       queryClient.invalidateQueries({ queryKey: ["client"] });
+      setDetail(null);
       toast(`Billed ${vars.clientName} ${currency(vars.amount)}.`);
     },
     onError: (err: any) => toast(err.response?.data?.error || "Could not bill this client.", "error"),
@@ -347,8 +348,8 @@ export default function Billing() {
                 <td className="py-2 px-4 text-right">
                   <button
                     className="bg-brand-600 text-white text-xs font-medium rounded px-3 py-1 hover:bg-brand-700 disabled:opacity-50"
-                    onClick={() => handleBill(r)}
-                    disabled={bill.isPending || r.wipValue <= 0}
+                    onClick={() => setDetail(r)}
+                    disabled={r.wipValue <= 0}
                   >
                     Bill
                   </button>
@@ -432,9 +433,18 @@ export default function Billing() {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-heading text-lg font-semibold text-gray-800">{detail.clientName}</h3>
-                <p className="text-xs text-gray-500">Outstanding WIP by return — each group is likely a separate bill</p>
+                <p className="text-xs text-gray-500">Outstanding WIP by return — bill each group separately, or everything at once</p>
               </div>
-              <button className="text-gray-400 hover:text-gray-700" onClick={() => setDetail(null)}>✕</button>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  className="rounded border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  onClick={() => handleBill(detail)}
+                  disabled={bill.isPending}
+                >
+                  Bill all ({currency(detail.wipValue)})
+                </button>
+                <button className="text-gray-400 hover:text-gray-700" onClick={() => setDetail(null)}>✕</button>
+              </div>
             </div>
 
             <div className="mt-4 space-y-3">
