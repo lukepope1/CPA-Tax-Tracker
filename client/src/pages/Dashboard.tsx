@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { StatusBadge } from "../components/ui";
+import { StatusBadge, useSort, SortTh } from "../components/ui";
 import {
   DueDate,
   ENGAGEMENT_STATUS_LABELS,
@@ -71,8 +71,10 @@ export default function Dashboard() {
     queryFn: async () => (await api.get("/due-dates/overdue", { params: { assignedToId: userId } })).data,
   });
 
+  const isUnassigned = userId === "unassigned";
   const isSelf = userId === user?.id;
-  const viewedName = users?.find((u) => u.id === userId)?.name ?? user?.name ?? "";
+  const viewedName = isUnassigned ? "Unassigned pool" : users?.find((u) => u.id === userId)?.name ?? user?.name ?? "";
+  const inboxSort = useSort<InboxItem>(inbox ?? [], "nextDueDate");
 
   return (
     <div className="space-y-6">
@@ -86,6 +88,7 @@ export default function Dashboard() {
             onChange={(e) => setViewUserId(e.target.value)}
           >
             {user && <option value={user.id}>My dashboard</option>}
+            <option value="unassigned">Unassigned pool (general)</option>
             {users
               ?.filter((u) => u.id !== user?.id)
               .map((u) => (
@@ -104,21 +107,23 @@ export default function Dashboard() {
 
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">
-          {isSelf ? "My Inbox" : `${viewedName}'s Inbox`} — returns in progress
+          {isUnassigned
+            ? "Unassigned Pool — returns not yet assigned"
+            : `${isSelf ? "My" : `${viewedName}'s`} Inbox — returns in progress`}
         </h2>
         {inbox && inbox.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="py-2 pr-4">Client</th>
-                <th className="py-2 pr-4">Return</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Status Since</th>
-                <th className="py-2 pr-4">Next Due</th>
+              <tr className="text-gray-500 border-b">
+                <SortTh<InboxItem> field="clientName" label="Client" sort={inboxSort} />
+                <SortTh<InboxItem> field="formType" label="Return" sort={inboxSort} />
+                <SortTh<InboxItem> field="status" label="Status" sort={inboxSort} />
+                <SortTh<InboxItem> field="statusSince" label="Status Since" sort={inboxSort} />
+                <SortTh<InboxItem> field="nextDueDate" label="Next Due" sort={inboxSort} />
               </tr>
             </thead>
             <tbody>
-              {inbox.map((item) => {
+              {inboxSort.sorted.map((item) => {
                 const overdueItem = item.nextDueDate && new Date(item.nextDueDate) < new Date();
                 return (
                   <tr key={item.id} className="border-b last:border-0">

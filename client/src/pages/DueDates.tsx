@@ -28,6 +28,17 @@ export default function DueDates() {
   const [assignedFilter, setAssignedFilter] = useState<string>("");
   const [parentFilter, setParentFilter] = useState<string>("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
+  const [sortKey, setSortKey] = useState<"date" | "client">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function toggleSort(key: "date" | "client") {
+    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+  const sortArrow = (key: "date" | "client") => (sortKey === key ? (sortDir === "asc" ? "▲" : "▼") : "⇅");
 
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["clients"],
@@ -103,6 +114,7 @@ export default function DueDates() {
   // so each state return's due dates nest under the matching federal return.
   interface Family {
     key: string;
+    clientName: string;
     federal: DueDate[];
     states: Map<string, DueDate[]>;
     earliest: number;
@@ -116,7 +128,7 @@ export default function DueDates() {
       const key = `${e?.client?.id ?? "?"}|${e?.formType ?? "?"}|${e?.taxYear ?? "?"}`;
       let fam = map.get(key);
       if (!fam) {
-        fam = { key, federal: [], states: new Map(), earliest: Infinity };
+        fam = { key, clientName: e?.client?.name ?? "", federal: [], states: new Map(), earliest: Infinity };
         map.set(key, fam);
         families.push(fam);
       }
@@ -134,7 +146,10 @@ export default function DueDates() {
       fam.federal.sort(byDate);
       for (const arr of fam.states.values()) arr.sort(byDate);
     }
-    families.sort((a, b) => a.earliest - b.earliest);
+    const dir = sortDir === "asc" ? 1 : -1;
+    families.sort((a, b) =>
+      sortKey === "client" ? dir * a.clientName.localeCompare(b.clientName) : dir * (a.earliest - b.earliest)
+    );
   }
 
   function renderRow(d: DueDate, opts: { sub?: boolean; rolledUp?: string[] } = {}) {
@@ -265,8 +280,12 @@ export default function DueDates() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b bg-gray-50">
-              <th className="py-2 px-4">Due Date</th>
-              <th className="py-2 px-4">Client</th>
+              <th className="py-2 px-4 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("date")}>
+                <span className="inline-flex items-center gap-1">Due Date <span className={`text-[10px] ${sortKey === "date" ? "text-brand-600" : "text-gray-300"}`}>{sortArrow("date")}</span></span>
+              </th>
+              <th className="py-2 px-4 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("client")}>
+                <span className="inline-flex items-center gap-1">Client <span className={`text-[10px] ${sortKey === "client" ? "text-brand-600" : "text-gray-300"}`}>{sortArrow("client")}</span></span>
+              </th>
               <th className="py-2 px-4">Return</th>
               <th className="py-2 px-4">Type</th>
               <th className="py-2 px-4">Assigned To</th>

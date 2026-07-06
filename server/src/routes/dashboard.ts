@@ -6,7 +6,9 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/summary", async (req, res) => {
-  const userId = req.query.userId ? String(req.query.userId) : undefined;
+  const raw = req.query.userId ? String(req.query.userId) : undefined;
+  const unassigned = raw === "unassigned";
+  const userId = unassigned ? undefined : raw;
 
   const now = new Date();
   const in7 = new Date(now);
@@ -21,7 +23,8 @@ router.get("/summary", async (req, res) => {
   // (and the extended deadline until one is). When a userId is given, scope to
   // the returns assigned to that person.
   const engagementIs: Record<string, unknown> = { client: { is: { deletedAt: null } } };
-  if (userId) engagementIs.assignedToId = userId;
+  if (unassigned) engagementIs.assignedToId = null;
+  else if (userId) engagementIs.assignedToId = userId;
   const activeFilters = {
     engagement: { is: engagementIs },
     NOT: [
@@ -30,9 +33,10 @@ router.get("/summary", async (req, res) => {
     ],
   };
 
-  const engagementWhere = userId ? { assignedToId: userId } : undefined;
+  const engagementWhere = unassigned ? { assignedToId: null } : userId ? { assignedToId: userId } : undefined;
   const hoursWhere: Record<string, unknown> = { date: { gte: weekAgo, lte: now } };
-  if (userId) hoursWhere.userId = userId;
+  if (unassigned) hoursWhere.id = "__none__"; // no personal hours for the pool
+  else if (userId) hoursWhere.userId = userId;
 
   const [overdueCount, dueThisWeek, dueThisMonth, engagementsByStatus, hoursThisWeek] = await Promise.all([
     prisma.dueDate.count({ where: { completed: false, dueDate: { lt: now }, ...activeFilters } }),
@@ -56,11 +60,12 @@ router.get("/summary", async (req, res) => {
 // view another person's inbox. Each return includes its next outstanding due
 // date so it can be sorted/displayed by urgency.
 router.get("/inbox", async (req, res) => {
-  const userId = req.query.userId ? String(req.query.userId) : req.user!.userId;
+  const raw = req.query.userId ? String(req.query.userId) : req.user!.userId;
+  const unassigned = raw === "unassigned";
 
   const engagements = await prisma.engagement.findMany({
     where: {
-      assignedToId: userId,
+      assignedToId: unassigned ? null : raw,
       status: { not: "COMPLETED" },
       client: { is: { deletedAt: null } },
       parentEngagementId: null, // top-level returns only (state/city roll up)
