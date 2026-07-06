@@ -254,6 +254,79 @@ export default function ClientDetail() {
     createEngagement.mutate(jurisdictions);
   }
 
+  const childrenOf = (parentId: string) => (client?.engagements ?? []).filter((e) => e.parentEngagementId === parentId);
+
+  function renderDueDates(eng: Engagement) {
+    return (
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-gray-500 border-b">
+            <th className="py-1 pr-4">Due Date</th>
+            <th className="py-1 pr-4">Type</th>
+            <th className="py-1 pr-4">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {eng.dueDates
+            .filter((dd) => eng.extensionFiled || dd.type !== "EXTENDED_FILING")
+            .filter((dd) => !eng.extensionFiled || dd.type !== "ORIGINAL_FILING")
+            .map((dd) => (
+              <tr key={dd.id} className="border-b last:border-0">
+                <td className="py-1 pr-4 whitespace-nowrap">
+                  <input
+                    type="date"
+                    className="border border-gray-300 rounded px-2 py-0.5 text-sm"
+                    defaultValue={dd.dueDate.slice(0, 10)}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        updateDueDate.mutate({ dueDateId: dd.id, dueDate: new Date(`${e.target.value}T00:00:00Z`).toISOString() });
+                      }
+                    }}
+                  />
+                </td>
+                <td className="py-1 pr-4">{DUE_DATE_TYPE_LABELS[dd.type]}</td>
+                <td className="py-1 pr-4">
+                  <label className="flex items-center gap-1">
+                    <input type="checkbox" checked={dd.completed} onChange={(e) => toggleDueDate.mutate({ dueDateId: dd.id, completed: e.target.checked })} />
+                    {dd.completed ? "Done" : "Pending"}
+                  </label>
+                </td>
+              </tr>
+            ))}
+          {eng.dueDates.length === 0 && (
+            <tr><td className="py-1 text-gray-400" colSpan={3}>No due dates.</td></tr>
+          )}
+        </tbody>
+      </table>
+    );
+  }
+
+  function renderChild(child: Engagement) {
+    return (
+      <div key={child.id} className="mt-3 pl-3 border-l-2 border-amber-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <span className="text-sm font-medium text-gray-700">
+            <span className="mr-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">{child.jurisdiction}</span>
+            {child.description ? `— ${child.description}` : ""}
+          </span>
+          <div className="flex items-center gap-2">
+            <select
+              className="border border-gray-300 rounded px-2 py-1 text-sm"
+              value={child.status}
+              onChange={(e) => updateEngagement.mutate({ engagementId: child.id, data: { status: e.target.value as EngagementStatus } })}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+            <button className="text-sm text-red-600 hover:underline" onClick={() => handleDeleteEngagement(child)}>Delete</button>
+          </div>
+        </div>
+        {renderDueDates(child)}
+      </div>
+    );
+  }
+
   if (!client) return <Loading />;
 
   return (
@@ -475,8 +548,8 @@ export default function ClientDetail() {
       )}
 
       <div className="space-y-4">
-        {client.engagements && client.engagements.length > 0 ? (
-          client.engagements.map((eng) => (
+        {client.engagements && client.engagements.some((e) => !e.parentEngagementId) ? (
+          client.engagements.filter((e) => !e.parentEngagementId).map((eng) => (
             <div key={eng.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h3 className="font-semibold text-gray-800">
@@ -676,50 +749,14 @@ export default function ClientDetail() {
                 );
               })()}
 
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b">
-                    <th className="py-1 pr-4">Due Date</th>
-                    <th className="py-1 pr-4">Type</th>
-                    <th className="py-1 pr-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eng.dueDates
-                    .filter((dd) => eng.extensionFiled || dd.type !== "EXTENDED_FILING")
-                    .filter((dd) => !eng.extensionFiled || dd.type !== "ORIGINAL_FILING")
-                    .map((dd) => (
-                      <tr key={dd.id} className="border-b last:border-0">
-                        <td className="py-1 pr-4 whitespace-nowrap">
-                          <input
-                            type="date"
-                            className="border border-gray-300 rounded px-2 py-0.5 text-sm"
-                            defaultValue={dd.dueDate.slice(0, 10)}
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                updateDueDate.mutate({
-                                  dueDateId: dd.id,
-                                  dueDate: new Date(`${e.target.value}T00:00:00Z`).toISOString(),
-                                });
-                              }
-                            }}
-                          />
-                        </td>
-                        <td className="py-1 pr-4">{DUE_DATE_TYPE_LABELS[dd.type]}</td>
-                        <td className="py-1 pr-4">
-                          <label className="flex items-center gap-1">
-                            <input
-                              type="checkbox"
-                              checked={dd.completed}
-                              onChange={(e) => toggleDueDate.mutate({ dueDateId: dd.id, completed: e.target.checked })}
-                            />
-                            {dd.completed ? "Done" : "Pending"}
-                          </label>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              {renderDueDates(eng)}
+
+              {childrenOf(eng.id).length > 0 && (
+                <div className="mt-3 border-t pt-3">
+                  <div className="text-xs font-medium text-gray-500 mb-1">State / City sub-returns</div>
+                  {childrenOf(eng.id).map(renderChild)}
+                </div>
+              )}
 
               {eng.statusChanges && eng.statusChanges.length > 0 && (
                 <details className="mt-3 text-xs text-gray-500">
