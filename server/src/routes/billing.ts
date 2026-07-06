@@ -92,22 +92,38 @@ router.post("/bill-engagement", async (req, res) => {
   res.json({ billId: bill.id, amount });
 });
 
-// Billing history: every recorded bill, newest first.
+// Billing history: every recorded bill, newest first, with the billed hours and
+// standard value behind each bill so per-bill realization can be shown.
 router.get("/history", async (_req, res) => {
   const bills = await prisma.bill.findMany({
-    include: { client: { select: { name: true } }, _count: { select: { engagements: true } } },
+    include: {
+      client: { select: { name: true } },
+      engagements: {
+        select: { timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } } },
+      },
+      timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+    },
     orderBy: { billedDate: "desc" },
   });
+
   res.json(
-    bills.map((b) => ({
-      id: b.id,
-      clientId: b.clientId,
-      clientName: b.client.name,
-      amount: b.amount,
-      billedDate: b.billedDate,
-      note: b.note ?? "",
-      returns: b._count.engagements,
-    }))
+    bills.map((b) => {
+      const all = [...b.engagements.flatMap((e) => e.timeEntries), ...b.timeEntries];
+      const hours = all.reduce((s, t) => s + t.hours, 0);
+      const stdValue = valueOf(all);
+      return {
+        id: b.id,
+        clientId: b.clientId,
+        clientName: b.client.name,
+        amount: b.amount,
+        billedDate: b.billedDate,
+        note: b.note ?? "",
+        returns: b.engagements.length,
+        hours,
+        stdValue,
+        realization: stdValue > 0 ? b.amount / stdValue : null,
+      };
+    })
   );
 });
 
@@ -408,6 +424,7 @@ router.get("/wip", async (_req, res) => {
           taxYear: true,
           billed: true,
           billedAmount: true,
+          billId: true,
           projectedFee: true,
           timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
         },
@@ -435,6 +452,10 @@ router.get("/wip", async (_req, res) => {
       let wipHours = generalHours;
       let openEngagements = 0;
 
+      // Total ever billed: recorded bills, plus returns marked billed via the
+      // checkbox on the client page (which don't create a bill record).
+      let billedTotal = c.bills.reduce((s, b) => s + b.amount, 0);
+
       for (const eng of c.engagements) {
         const engValue = value(eng.timeEntries);
         const engHours = hoursOf(eng.timeEntries);
@@ -442,11 +463,10 @@ router.get("/wip", async (_req, res) => {
           wipValue += engValue;
           wipHours += engHours;
           if (engHours > 0 || (eng.projectedFee ?? 0) > 0) openEngagements++;
+        } else if (!eng.billId) {
+          billedTotal += eng.billedAmount ?? 0;
         }
       }
-
-      // Total ever billed to this client, from the bill records.
-      const billedTotal = c.bills.reduce((s, b) => s + b.amount, 0);
 
       return {
         clientId: c.id,

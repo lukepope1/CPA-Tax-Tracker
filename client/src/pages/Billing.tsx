@@ -43,6 +43,16 @@ interface BillRow {
   billedDate: string;
   note: string;
   returns: number;
+  hours: number;
+  stdValue: number;
+  realization: number | null;
+}
+
+function realizationColor(r: number | null) {
+  if (r == null) return "text-gray-400";
+  if (r >= 1) return "text-green-700";
+  if (r >= 0.85) return "text-amber-600";
+  return "text-red-600";
 }
 
 function formatDate(d: string) {
@@ -257,6 +267,31 @@ export default function Billing() {
         </div>
       )}
 
+      {view === "billed" && history && (() => {
+        const totalBilled = history.reduce((s, b) => s + b.amount, 0);
+        const totalHours = history.reduce((s, b) => s + b.hours, 0);
+        const totalStd = history.reduce((s, b) => s + b.stdValue, 0);
+        const totalRealization = totalStd > 0 ? totalBilled / totalStd : null;
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase">Total Billed</div>
+              <div className="text-2xl font-bold text-brand-600">{currency(totalBilled)}</div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase">Total Hours Billed</div>
+              <div className="text-2xl font-bold text-gray-800">{totalHours.toFixed(1)}</div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="text-xs font-medium text-gray-500 uppercase">Total Realization</div>
+              <div className={`text-2xl font-bold ${realizationColor(totalRealization)}`}>
+                {totalRealization != null ? `${(totalRealization * 100).toFixed(0)}%` : "—"}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {view === "outstanding" && (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-sm">
@@ -341,6 +376,8 @@ export default function Billing() {
                 <th className="py-2 px-4">Date</th>
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4 text-right">Amount</th>
+                <th className="py-2 px-4 text-right">Hours</th>
+                <th className="py-2 px-4 text-right">Realization</th>
                 <th className="py-2 px-4 text-right">Returns</th>
                 <th className="py-2 px-4">Note</th>
                 <th className="py-2 px-4"></th>
@@ -348,7 +385,7 @@ export default function Billing() {
             </thead>
             <tbody>
               {historyLoading && (
-                <tr><td colSpan={6}><Loading /></td></tr>
+                <tr><td colSpan={8}><Loading /></td></tr>
               )}
               {history?.map((b) => (
                 <tr key={b.id} className="border-b last:border-0 hover:bg-gray-50">
@@ -357,6 +394,10 @@ export default function Billing() {
                     <Link to={`/clients/${b.clientId}`} className="text-brand-600 hover:underline font-medium">{b.clientName}</Link>
                   </td>
                   <td className="py-2 px-4 text-right font-medium text-gray-800">{currency(b.amount)}</td>
+                  <td className="py-2 px-4 text-right text-gray-600">{b.hours.toFixed(1)}</td>
+                  <td className={`py-2 px-4 text-right font-medium ${realizationColor(b.realization)}`}>
+                    {b.realization != null ? `${(b.realization * 100).toFixed(0)}%` : "—"}
+                  </td>
                   <td className="py-2 px-4 text-right text-gray-600">{b.returns}</td>
                   <td className="py-2 px-4 text-gray-600">{b.note || "-"}</td>
                   <td className="py-2 px-4 text-right whitespace-nowrap">
@@ -366,7 +407,7 @@ export default function Billing() {
                 </tr>
               ))}
               {history && history.length === 0 && (
-                <tr><td colSpan={6}><EmptyState title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
+                <tr><td colSpan={8}><EmptyState title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
               )}
             </tbody>
           </table>
