@@ -5,7 +5,7 @@ import { Client, Engagement, engagementLabel, TimeEntry } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
-import { Loading, EmptyState } from "../components/ui";
+import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -207,6 +207,19 @@ export default function TimeEntries() {
   const currency = (n: number) =>
     n.toLocaleString(undefined, { style: "currency", currency: "USD" });
 
+  const entryRows = (entries ?? []).map((e) => ({
+    entry: e,
+    date: e.date,
+    client: e.client?.name ?? "",
+    return: e.engagement ? engagementLabel(e.engagement) : "",
+    description: e.description,
+    hours: e.hours,
+    rate: effectiveRate(e) ?? 0,
+    value: e.hours * (effectiveRate(e) ?? 0),
+    billable: e.billable ? "Yes" : "No",
+  }));
+  const entrySort = useSort(entryRows, "date", "desc");
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-gray-800">Time Entry</h1>
@@ -351,15 +364,15 @@ export default function TimeEntries() {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b">
-              <th className="py-2 px-4">Date</th>
-              <th className="py-2 px-4">Client</th>
-              <th className="py-2 px-4">Return</th>
-              <th className="py-2 px-4">Description</th>
-              <th className="py-2 px-4">Hours</th>
-              <th className="py-2 px-4">Rate</th>
-              <th className="py-2 px-4">Value</th>
-              <th className="py-2 px-4">Billable</th>
+            <tr className="text-gray-500 border-b">
+              <SortTh field="date" label="Date" sort={entrySort} />
+              <SortTh field="client" label="Client" sort={entrySort} />
+              <SortTh field="return" label="Return" sort={entrySort} />
+              <SortTh field="description" label="Description" sort={entrySort} />
+              <SortTh field="hours" label="Hours" sort={entrySort} />
+              <SortTh field="rate" label="Rate" sort={entrySort} />
+              <SortTh field="value" label="Value" sort={entrySort} />
+              <SortTh field="billable" label="Billable" sort={entrySort} />
               <th className="py-2 px-4"></th>
             </tr>
           </thead>
@@ -367,7 +380,9 @@ export default function TimeEntries() {
             {isLoading && (
               <tr><td colSpan={9}><Loading /></td></tr>
             )}
-            {entries?.map((e) => (
+            {entrySort.sorted.map((r) => {
+              const e = r.entry;
+              return (
               <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="py-2 px-4 whitespace-nowrap">{formatDate(e.date)}</td>
                 <td className="py-2 px-4">{e.client?.name}</td>
@@ -389,7 +404,8 @@ export default function TimeEntries() {
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {entries && entries.length === 0 && (
               <tr><td colSpan={9}><EmptyState title="No time entries yet" hint="Log time above or start the timer." /></td></tr>
             )}
