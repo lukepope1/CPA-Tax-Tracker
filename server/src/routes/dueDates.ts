@@ -27,7 +27,7 @@ function engagementFilter(opts: { taxYear?: number; assignedToId?: string; statu
     // Include the parent client itself plus all of its children.
     clientIs.OR = [{ id: opts.parentClientId }, { parentId: opts.parentClientId }];
   }
-  const is: Record<string, unknown> = { client: { is: clientIs } };
+  const is: Record<string, unknown> = { client: { is: clientIs }, deletedAt: null };
   if (opts.taxYear) is.taxYear = opts.taxYear;
   if (opts.assignedToId) is.assignedToId = opts.assignedToId;
   // Hide returns marked Completed unless the user explicitly filters by a status.

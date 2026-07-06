@@ -227,14 +227,15 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client", id] });
       queryClient.invalidateQueries({ queryKey: ["due-dates"] });
-      toast("Return deleted.");
+      queryClient.invalidateQueries({ queryKey: ["engagements-trash"] });
+      toast("Return moved to Trash (restorable for 30 days).");
     },
   });
 
   async function handleDeleteEngagement(eng: Engagement) {
     const ok = await confirm({
       title: `Delete this return?`,
-      message: `${engagementLabel(eng)} — this permanently removes the return, its due dates, and unlinks its time entries. This cannot be undone.`,
+      message: `${engagementLabel(eng)} — the return (and any state/city sub-returns) will be moved to the Trash and can be restored for 30 days.`,
       confirmLabel: "Delete return",
       tone: "danger",
     });

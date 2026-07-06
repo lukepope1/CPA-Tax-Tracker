@@ -70,6 +70,7 @@ model Engagement {
   fiscalYearEndDay   Int            @default(31)
   status          String           @default("NOT_STARTED")
   extensionFiled  Boolean          @default(false)
+  deletedAt       DateTime?        // soft-delete: restorable for 30 days via the Trash page
   assignedTo      User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   assignedToId    String?
   notes           String?

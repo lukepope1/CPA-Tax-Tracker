@@ -66,7 +66,7 @@ router.post("/rollforward", requireAdmin, async (req, res) => {
   const toYear = fromYear + 1;
 
   const source = await prisma.engagement.findMany({
-    where: { taxYear: fromYear, client: { is: { deletedAt: null } } },
+    where: { taxYear: fromYear, deletedAt: null, client: { is: { deletedAt: null } } },
   });
 
   const existingNext = await prisma.engagement.findMany({
@@ -159,6 +159,7 @@ router.get("/", async (req, res) => {
   const { clientId, taxYear, status, assignedToId } = req.query;
   const engagements = await prisma.engagement.findMany({
     where: {
+      deletedAt: null,
       clientId: clientId ? String(clientId) : undefined,
       taxYear: taxYear ? Number(taxYear) : undefined,
       status: status ? (String(status) as any) : undefined,
@@ -291,7 +292,45 @@ router.put("/:id", async (req, res) => {
   res.json(engagement);
 });
 
+// Soft-delete a return (and its state/city sub-returns). Restorable for 30 days
+// from the Trash page.
 router.delete("/:id", async (req, res) => {
+  const now = new Date();
+  await prisma.engagement.updateMany({
+    where: { OR: [{ id: req.params.id }, { parentEngagementId: req.params.id }] },
+    data: { deletedAt: now },
+  });
+  res.status(204).send();
+});
+
+const ENGAGEMENT_TRASH_DAYS = 30;
+
+// Deleted returns still within the 30-day window (top-level; sub-returns restore
+// with their parent). Purges anything older.
+router.get("/trash/list", async (_req, res) => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - ENGAGEMENT_TRASH_DAYS);
+  await prisma.engagement.deleteMany({ where: { deletedAt: { not: null, lt: cutoff } } });
+
+  const engagements = await prisma.engagement.findMany({
+    where: { deletedAt: { not: null }, parentEngagementId: null },
+    include: { client: { select: { id: true, name: true } }, subEngagements: { select: { jurisdiction: true } } },
+    orderBy: { deletedAt: "desc" },
+  });
+  res.json(engagements);
+});
+
+// Restore a soft-deleted return (and its sub-returns).
+router.post("/:id/restore", async (req, res) => {
+  await prisma.engagement.updateMany({
+    where: { OR: [{ id: req.params.id }, { parentEngagementId: req.params.id }] },
+    data: { deletedAt: null },
+  });
+  res.json({ ok: true });
+});
+
+// Permanently delete a soft-deleted return.
+router.delete("/:id/permanent", async (req, res) => {
   await prisma.engagement.delete({ where: { id: req.params.id } });
   res.status(204).send();
 });

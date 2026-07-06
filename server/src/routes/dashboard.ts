@@ -22,7 +22,7 @@ router.get("/summary", async (req, res) => {
   // trashed clients, and ignore the original deadline once an extension is filed
   // (and the extended deadline until one is). When a userId is given, scope to
   // the returns assigned to that person.
-  const engagementIs: Record<string, unknown> = { client: { is: { deletedAt: null } } };
+  const engagementIs: Record<string, unknown> = { client: { is: { deletedAt: null } }, deletedAt: null };
   if (unassigned) engagementIs.assignedToId = null;
   else if (userId) engagementIs.assignedToId = userId;
   const activeFilters = {
@@ -67,6 +67,7 @@ router.get("/inbox", async (req, res) => {
     where: {
       assignedToId: unassigned ? null : raw,
       status: { not: "COMPLETED" },
+      deletedAt: null,
       client: { is: { deletedAt: null } },
       parentEngagementId: null, // top-level returns only (state/city roll up)
     },

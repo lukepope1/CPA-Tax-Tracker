@@ -39,7 +39,7 @@ router.post("/bill", async (req, res) => {
   }
 
   const engagements = await prisma.engagement.findMany({
-    where: { clientId, billed: false, client: { is: { deletedAt: null } } },
+    where: { clientId, billed: false, deletedAt: null, client: { is: { deletedAt: null } } },
     select: {
       id: true,
       timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
@@ -243,7 +243,7 @@ router.get("/wip/:clientId/by-user", async (req, res) => {
   const clientId = req.params.clientId;
 
   const unbilled = await prisma.engagement.findMany({
-    where: { clientId, billed: false },
+    where: { clientId, billed: false, deletedAt: null },
     select: { id: true },
   });
   const engIds = unbilled.map((e) => e.id);
@@ -278,7 +278,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
   const clientId = req.params.clientId;
 
   const engagements = await prisma.engagement.findMany({
-    where: { clientId, billed: false },
+    where: { clientId, billed: false, deletedAt: null },
     select: {
       id: true,
       formType: true,
@@ -351,6 +351,7 @@ router.get("/firm", async (req, res) => {
 
   const engagements = await prisma.engagement.findMany({
     where: {
+      deletedAt: null,
       client: { is: { deletedAt: null } },
       ...(taxYear ? { taxYear } : {}),
     },
@@ -418,6 +419,7 @@ router.get("/wip", async (_req, res) => {
       name: true,
       clientType: true,
       engagements: {
+        where: { deletedAt: null },
         select: {
           id: true,
           formType: true,

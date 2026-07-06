@@ -55,7 +55,10 @@ router.get("/", async (req, res) => {
         : {}),
     },
     orderBy: { name: "asc" },
-    include: { _count: { select: { engagements: true } }, parent: { select: { id: true, name: true } } },
+    include: {
+      _count: { select: { engagements: { where: { deletedAt: null } } } },
+      parent: { select: { id: true, name: true } },
+    },
   });
   res.json(clients);
 });
@@ -76,6 +79,7 @@ router.get("/:id", async (req, res) => {
     where: { id: req.params.id },
     include: {
       engagements: {
+        where: { deletedAt: null },
         include: {
           dueDates: true,
           assignedTo: { select: { id: true, name: true } },
