@@ -156,21 +156,21 @@ export default function DueDates() {
     const overdue = !d.completed && new Date(d.dueDate) < now;
     return (
       <tr key={d.id} className={`border-b last:border-0 hover:bg-gray-50 ${overdue ? "bg-red-50" : ""}`}>
-        <td className={`py-2 px-4 whitespace-nowrap ${overdue ? "text-red-700 font-medium" : ""}`}>{formatDate(d.dueDate)}</td>
-        <td className="py-2 px-4">
+        <td className={`py-2 px-3 whitespace-nowrap ${overdue ? "text-red-700 font-medium" : ""}`}>{formatDate(d.dueDate)}</td>
+        <td className="py-2 px-3">
           <Link to={`/clients/${d.engagement?.client?.id}`} className="text-brand-600 hover:underline">
             {d.engagement?.client?.name}
           </Link>
         </td>
-        <td className={`py-2 px-4 whitespace-nowrap ${opts.sub ? "pl-8 text-gray-600" : ""}`}>
+        <td className={`py-2 px-3 ${opts.sub ? "pl-6 text-gray-600" : ""}`}>
           {opts.sub && <span className="text-gray-400 mr-1">↳</span>}
           {d.engagement && engagementLabel(d.engagement)}
           {opts.rolledUp && opts.rolledUp.length > 0 && (
             <span className="ml-2 text-xs text-gray-400">+ {opts.rolledUp.join(", ")}</span>
           )}
         </td>
-        <td className="py-2 px-4 whitespace-nowrap">{DUE_DATE_TYPE_LABELS[d.type]}</td>
-        <td className="py-2 px-4">
+        <td className="py-2 px-3">{DUE_DATE_TYPE_LABELS[d.type]}</td>
+        <td className="py-2 px-3">
           {d.engagement ? (
             <select
               className="border border-gray-300 rounded px-2 py-1 text-sm"
@@ -188,7 +188,7 @@ export default function DueDates() {
             "-"
           )}
         </td>
-        <td className="py-2 px-4">
+        <td className="py-2 px-3">
           {d.engagement ? (
             <select
               className="border border-gray-300 rounded px-2 py-1 text-sm"
@@ -281,16 +281,16 @@ export default function DueDates() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b bg-gray-50">
-              <th className="py-2 px-4 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("date")}>
+              <th className="py-2 px-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("date")}>
                 <span className="inline-flex items-center gap-1">Due Date <span className={`text-[10px] ${sortKey === "date" ? "text-brand-600" : "text-gray-300"}`}>{sortArrow("date")}</span></span>
               </th>
-              <th className="py-2 px-4 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("client")}>
+              <th className="py-2 px-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("client")}>
                 <span className="inline-flex items-center gap-1">Client <span className={`text-[10px] ${sortKey === "client" ? "text-brand-600" : "text-gray-300"}`}>{sortArrow("client")}</span></span>
               </th>
-              <th className="py-2 px-4">Return</th>
-              <th className="py-2 px-4">Type</th>
-              <th className="py-2 px-4">Assigned To</th>
-              <th className="py-2 px-4">Status</th>
+              <th className="py-2 px-3">Return</th>
+              <th className="py-2 px-3">Type</th>
+              <th className="py-2 px-3">Assigned To</th>
+              <th className="py-2 px-3">Status</th>
               <th className="px-2"></th>
             </tr>
           </thead>
