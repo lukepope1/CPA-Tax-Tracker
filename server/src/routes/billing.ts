@@ -417,6 +417,7 @@ router.get("/wip", async (_req, res) => {
         where: { engagementId: null, billId: null },
         select: { hours: true, rate: true, user: { select: { billableRate: true } } },
       },
+      bills: { select: { amount: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -432,20 +433,20 @@ router.get("/wip", async (_req, res) => {
 
       let wipValue = generalValue;
       let wipHours = generalHours;
-      let billedTotal = 0;
       let openEngagements = 0;
 
       for (const eng of c.engagements) {
         const engValue = value(eng.timeEntries);
         const engHours = hoursOf(eng.timeEntries);
-        if (eng.billed) {
-          billedTotal += eng.billedAmount ?? 0;
-        } else {
+        if (!eng.billed) {
           wipValue += engValue;
           wipHours += engHours;
           if (engHours > 0 || (eng.projectedFee ?? 0) > 0) openEngagements++;
         }
       }
+
+      // Total ever billed to this client, from the bill records.
+      const billedTotal = c.bills.reduce((s, b) => s + b.amount, 0);
 
       return {
         clientId: c.id,
