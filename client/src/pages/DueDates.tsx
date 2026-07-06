@@ -209,6 +209,7 @@ export default function DueDates() {
             "-"
           )}
         </td>
+        <td className="px-2"></td>
       </tr>
     );
   }
@@ -290,11 +291,12 @@ export default function DueDates() {
               <th className="py-2 px-4">Type</th>
               <th className="py-2 px-4">Assigned To</th>
               <th className="py-2 px-4">Status</th>
+              <th className="px-2"></th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={6}><Loading /></td></tr>
+              <tr><td colSpan={7}><Loading /></td></tr>
             )}
             {families.map((fam) => {
               // Collapse a state/city due date when it matches the federal date
@@ -318,7 +320,7 @@ export default function DueDates() {
               );
             })}
             {dueDates && dueDates.length === 0 && (
-              <tr><td colSpan={6}><EmptyState title="Nothing due" hint="No outstanding due dates for this filter." /></td></tr>
+              <tr><td colSpan={7}><EmptyState title="Nothing due" hint="No outstanding due dates for this filter." /></td></tr>
             )}
           </tbody>
         </table>
