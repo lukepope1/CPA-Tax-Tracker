@@ -39,3 +39,8 @@ h1, h2, h3, .font-heading {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Subtle fade-in when navigating between pages */
+main > * {
+  animation: fadeIn 0.18s ease-out;
+}

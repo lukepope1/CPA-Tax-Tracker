@@ -230,14 +230,20 @@ export default function Billing() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            className="border border-gray-300 rounded px-3 py-2 text-sm"
-            value={view}
-            onChange={(e) => setView(e.target.value as "outstanding" | "billed")}
-          >
-            <option value="outstanding">Outstanding</option>
-            <option value="billed">Billed (history)</option>
-          </select>
+          <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5">
+            <button
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${view === "outstanding" ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+              onClick={() => setView("outstanding")}
+            >
+              Outstanding
+            </button>
+            <button
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${view === "billed" ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
+              onClick={() => setView("billed")}
+            >
+              Billed
+            </button>
+          </div>
           {view === "outstanding" && (
             <button
               className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded px-4 py-2 hover:bg-gray-50 disabled:opacity-50"

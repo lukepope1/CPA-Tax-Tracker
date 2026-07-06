@@ -187,7 +187,7 @@ export default function Dashboard() {
 
 function StatCard({ label, value, accent }: { label: string; value: string | number; accent: string }) {
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow transition-shadow p-4">
       <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
       <p className={`text-2xl font-semibold mt-1 ${accent}`}>{value}</p>
     </div>
