@@ -401,11 +401,11 @@ export default function Clients() {
               <SortTh field="name" label="Name" sort={sort} />
               <SortTh field="type" label="Type" sort={sort} className="whitespace-nowrap" />
               <SortTh field="code" label="Code" sort={sort} />
-              <SortTh field="parent" label="Parent" sort={sort} className="whitespace-nowrap" />
+              <SortTh field="parent" label="Parent" sort={sort} />
               <SortTh field="email" label="Contact Email" sort={sort} />
               <SortTh field="fye" label="FYE" sort={sort} className="whitespace-nowrap" />
               <SortTh field="engagements" label="Returns" sort={sort} align="right" />
-              <th className="py-2 px-4"></th>
+              <th className="py-2 px-4 sticky right-0 bg-gray-50"></th>
             </tr>
           </thead>
           <tbody>
@@ -421,11 +421,11 @@ export default function Clients() {
                   </td>
                   <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.clientType ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.clientCode ?? "-"}</td>
-                  <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{c.parent?.name ?? "-"}</td>
+                  <td className="py-2 px-4 text-gray-600 min-w-[120px]">{c.parent?.name ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600">{c.contactEmail ?? "-"}</td>
                   <td className="py-2 px-4 text-gray-600 whitespace-nowrap">{MONTHS[c.fiscalYearEndMonth - 1].slice(0, 3)} {c.fiscalYearEndDay}</td>
                   <td className="py-2 px-4 text-right text-gray-600">{c._count?.engagements ?? 0}</td>
-                  <td className="py-2 px-4 text-right whitespace-nowrap">
+                  <td className="py-2 px-4 text-right whitespace-nowrap sticky right-0 bg-white">
                     <button className="text-brand-600 hover:underline mr-3" onClick={() => setEdit(c)}>
                       Edit
                     </button>
