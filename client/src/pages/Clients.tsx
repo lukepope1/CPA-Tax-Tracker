@@ -123,6 +123,7 @@ export default function Clients() {
   const [fyeMonth, setFyeMonth] = useState(12);
   const [fyeDay, setFyeDay] = useState(31);
   const [search, setSearch] = useState("");
+  const [parentFilter, setParentFilter] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ created: number; updated: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -249,6 +250,30 @@ export default function Clients() {
     }
   }
 
+  function exportClients() {
+    const rows = clientRows.map((r) => {
+      const c = r.client;
+      return {
+        Name: c.name,
+        Type: c.clientType ?? "",
+        Code: c.clientCode ?? "",
+        Parent: c.parent?.name ?? "",
+        "Contact Name": c.contactName ?? "",
+        "Contact Email": c.contactEmail ?? "",
+        "Contact Phone": c.contactPhone ?? "",
+        "FYE Month": c.fiscalYearEndMonth,
+        "FYE Day": c.fiscalYearEndDay,
+        Returns: c._count?.engagements ?? 0,
+        Notes: c.notes ?? "",
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clients");
+    XLSX.writeFile(wb, `clients-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast("Exported clients.xlsx");
+  }
+
   const q = search.trim().toLowerCase();
   const clientRows = (clients ?? [])
     .filter(
@@ -259,6 +284,8 @@ export default function Clients() {
         (c.parent?.name ?? "").toLowerCase().includes(q) ||
         (c.contactName ?? "").toLowerCase().includes(q)
     )
+    // Parent filter: show the parent client itself plus its sub-clients.
+    .filter((c) => !parentFilter || c.id === parentFilter || c.parentId === parentFilter)
     .map((c) => ({
     client: c,
     id: c.id,
@@ -397,12 +424,30 @@ export default function Clients() {
         </form>
       )}
 
-      <input
-        className="w-full md:w-80 border border-gray-300 rounded px-3 py-2 text-sm"
-        placeholder="Search clients..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          className="w-full md:w-80 border border-gray-300 rounded px-3 py-2 text-sm"
+          placeholder="Search clients..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          Parent:
+          <select className="border border-gray-300 rounded px-2 py-2 text-sm" value={parentFilter} onChange={(e) => setParentFilter(e.target.value)}>
+            <option value="">All clients</option>
+            {clients?.filter((c) => clients.some((x) => x.parentId === c.id)).map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded px-4 py-2 hover:bg-gray-50 disabled:opacity-50"
+          onClick={exportClients}
+          disabled={clientRows.length === 0}
+        >
+          Export to Excel
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full text-sm">
