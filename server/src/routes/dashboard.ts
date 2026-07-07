@@ -99,11 +99,16 @@ router.get("/inbox", async (req, res) => {
       nextDueDate: next ? next.dueDate : null,
       nextDueType: next ? next.type : null,
       statusSince: eng.statusChanges[0]?.changedAt ?? null,
+      priority: eng.priority,
     };
   });
 
-  // Soonest due first; returns with no outstanding due date go last.
+  // Manual priority first (lower = more important); un-prioritized items follow,
+  // soonest due first.
   rows.sort((a, b) => {
+    if (a.priority != null && b.priority != null) return a.priority - b.priority;
+    if (a.priority != null) return -1;
+    if (b.priority != null) return 1;
     if (!a.nextDueDate) return 1;
     if (!b.nextDueDate) return -1;
     return new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();

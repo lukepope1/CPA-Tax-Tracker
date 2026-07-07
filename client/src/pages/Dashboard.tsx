@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -35,6 +35,7 @@ interface InboxItem {
   nextDueDate: string | null;
   nextDueType: DueDateType | null;
   statusSince: string | null;
+  priority: number | null;
 }
 
 function formatDate(d: string) {
@@ -74,7 +75,34 @@ export default function Dashboard() {
   const isUnassigned = userId === "unassigned";
   const isSelf = userId === user?.id;
   const viewedName = isUnassigned ? "Unassigned pool" : users?.find((u) => u.id === userId)?.name ?? user?.name ?? "";
+
+  // "My order" (drag & drop, server-persisted priority) vs. column sorting.
+  const [manualOrder, setManualOrder] = useState(true);
   const inboxSort = useSort<InboxItem>(inbox ?? [], "nextDueDate");
+  const displayed = manualOrder ? inbox ?? [] : inboxSort.sorted;
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const queryClientHook = useQueryClient();
+
+  const reorder = useMutation({
+    mutationFn: async (ids: string[]) => api.post("/engagements/reorder", { ids }),
+    onSuccess: () => queryClientHook.invalidateQueries({ queryKey: ["dashboard-inbox"] }),
+  });
+
+  function handleDrop(targetIndex: number) {
+    if (dragIndex === null || dragIndex === targetIndex || !inbox) return;
+    const next = [...inbox];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    setDragIndex(null);
+    // Optimistically show the new order, then persist it.
+    queryClientHook.setQueryData(["dashboard-inbox", userId], next);
+    reorder.mutate(next.map((i) => i.id));
+  }
+
+  function sortByColumn(key: keyof InboxItem) {
+    setManualOrder(false);
+    inboxSort.toggle(key);
+  }
 
   return (
     <div className="space-y-6">
@@ -106,27 +134,46 @@ export default function Dashboard() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">
-          {isUnassigned
-            ? "Unassigned Pool — returns not yet assigned"
-            : `${isSelf ? "My" : `${viewedName}'s`} Inbox — returns in progress`}
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-gray-700">
+            {isUnassigned
+              ? "Unassigned Pool — returns not yet assigned"
+              : `${isSelf ? "My" : `${viewedName}'s`} Inbox — returns in progress`}
+          </h2>
+          {manualOrder ? (
+            <span className="text-xs text-gray-400">Drag rows to set importance · click a header to sort instead</span>
+          ) : (
+            <button className="text-xs text-brand-600 hover:underline" onClick={() => setManualOrder(true)}>
+              Back to my order
+            </button>
+          )}
+        </div>
         {inbox && inbox.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-500 border-b">
-                <SortTh<InboxItem> field="clientName" label="Client" sort={inboxSort} />
-                <SortTh<InboxItem> field="formType" label="Return" sort={inboxSort} />
-                <SortTh<InboxItem> field="status" label="Status" sort={inboxSort} />
-                <SortTh<InboxItem> field="statusSince" label="Status Since" sort={inboxSort} />
-                <SortTh<InboxItem> field="nextDueDate" label="Next Due" sort={inboxSort} />
+              <tr className="text-left text-gray-500 border-b">
+                {manualOrder && <th className="py-2 pr-2 w-6"></th>}
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("clientName")}>Client</th>
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("formType")}>Return</th>
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("status")}>Status</th>
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("statusSince")}>Status Since</th>
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("nextDueDate")}>Next Due</th>
               </tr>
             </thead>
             <tbody>
-              {inboxSort.sorted.map((item) => {
+              {displayed.map((item, idx) => {
                 const overdueItem = item.nextDueDate && new Date(item.nextDueDate) < new Date();
                 return (
-                  <tr key={item.id} className="border-b last:border-0">
+                  <tr
+                    key={item.id}
+                    className={`border-b last:border-0 ${manualOrder ? "cursor-grab" : ""} ${dragIndex === idx ? "opacity-50" : ""}`}
+                    draggable={manualOrder}
+                    onDragStart={() => setDragIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDrop(idx)}
+                    onDragEnd={() => setDragIndex(null)}
+                  >
+                    {manualOrder && <td className="py-2 pr-2 text-gray-300 select-none">⠿</td>}
                     <td className="py-2 pr-4">
                       <Link to={`/clients/${item.clientId}`} className="text-brand-600 hover:underline">
                         {item.clientName}

@@ -155,6 +155,17 @@ router.post("/relink-subtasks", requireAdmin, async (_req, res) => {
   res.json({ linked, historySeeded: seeded });
 });
 
+// Save a manual importance order for a set of returns (dashboard drag & drop).
+// Each id's priority becomes its position in the list.
+router.post("/reorder", async (req, res) => {
+  const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids.map(String) : [];
+  if (ids.length === 0) return res.status(400).json({ error: "ids array required" });
+  await prisma.$transaction(
+    ids.map((id, i) => prisma.engagement.update({ where: { id }, data: { priority: i } }))
+  );
+  res.json({ ok: true });
+});
+
 router.get("/", async (req, res) => {
   const { clientId, taxYear, status, assignedToId } = req.query;
   const engagements = await prisma.engagement.findMany({
