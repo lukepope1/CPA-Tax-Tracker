@@ -88,6 +88,28 @@ router.get("/me", requireAuth, async (req, res) => {
   res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
 });
 
+// Any signed-in user can change their own password (current password required).
+router.post("/change-password", requireAuth, async (req, res) => {
+  const schema = z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "New password must be at least 8 characters" });
+
+  const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const valid = await bcrypt.compare(parsed.data.currentPassword, user.password);
+  if (!valid) return res.status(400).json({ error: "Current password is incorrect" });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: await bcrypt.hash(parsed.data.newPassword, 10) },
+  });
+  res.json({ ok: true });
+});
+
 router.get("/users", requireAuth, async (_req, res) => {
   const users = await prisma.user.findMany({
     select: { id: true, name: true, email: true, role: true, billableRate: true },
