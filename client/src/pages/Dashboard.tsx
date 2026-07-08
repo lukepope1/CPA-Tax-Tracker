@@ -7,6 +7,7 @@ import { StatusBadge, useSort, SortTh } from "../components/ui";
 import {
   DueDate,
   ENGAGEMENT_STATUS_LABELS,
+  ENGAGEMENT_STATUSES,
   EngagementStatus,
   DUE_DATE_TYPE_LABELS,
   DueDateType,
@@ -36,6 +37,7 @@ interface InboxItem {
   nextDueType: DueDateType | null;
   statusSince: string | null;
   priority: number | null;
+  assignedToId: string | null;
 }
 
 function formatDate(d: string) {
@@ -86,6 +88,16 @@ export default function Dashboard() {
   const reorder = useMutation({
     mutationFn: async (ids: string[]) => api.post("/engagements/reorder", { ids }),
     onSuccess: () => queryClientHook.invalidateQueries({ queryKey: ["dashboard-inbox"] }),
+  });
+
+  const updateEng = useMutation({
+    mutationFn: async ({ engagementId, data }: { engagementId: string; data: Record<string, unknown> }) =>
+      (await api.put(`/engagements/${engagementId}`, data)).data,
+    onSuccess: () => {
+      queryClientHook.invalidateQueries({ queryKey: ["dashboard-inbox"] });
+      queryClientHook.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClientHook.invalidateQueries({ queryKey: ["due-dates"] });
+    },
   });
 
   function handleDrop(targetIndex: number) {
@@ -156,6 +168,7 @@ export default function Dashboard() {
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("clientName")}>Client</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("formType")}>Return</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("status")}>Status</th>
+                <th className="py-2 pr-4">Assigned To</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("statusSince")}>Status Since</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("nextDueDate")}>Next Due</th>
               </tr>
@@ -182,7 +195,29 @@ export default function Dashboard() {
                     <td className="py-2 pr-4 whitespace-nowrap">
                       {engagementLabel(item)}
                     </td>
-                    <td className="py-2 pr-4 whitespace-nowrap"><StatusBadge status={item.status} /></td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                        value={item.status}
+                        onChange={(e) => updateEng.mutate({ engagementId: item.id, data: { status: e.target.value } })}
+                      >
+                        {ENGAGEMENT_STATUSES.map((s) => (
+                          <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      <select
+                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                        value={item.assignedToId ?? ""}
+                        onChange={(e) => updateEng.mutate({ engagementId: item.id, data: { assignedToId: e.target.value || null } })}
+                      >
+                        <option value="">Unassigned</option>
+                        {users?.map((u) => (
+                          <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-2 pr-4 whitespace-nowrap text-gray-500">{item.statusSince ? formatDate(item.statusSince) : "—"}</td>
                     <td className={`py-2 pr-4 whitespace-nowrap ${overdueItem ? "text-red-700 font-medium" : ""}`}>
                       {item.nextDueDate

@@ -100,6 +100,7 @@ router.get("/inbox", async (req, res) => {
       nextDueType: next ? next.type : null,
       statusSince: eng.statusChanges[0]?.changedAt ?? null,
       priority: eng.priority,
+      assignedToId: eng.assignedToId,
     };
   });
 
