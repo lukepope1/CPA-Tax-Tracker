@@ -12,7 +12,7 @@ export default function Admin() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { confirm } = useDialog();
+  const { confirm, prompt } = useDialog();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -137,6 +137,28 @@ export default function Admin() {
       tone: "danger",
     });
     if (ok) deleteUser.mutate(u.id);
+  }
+
+  const resetPassword = useMutation({
+    mutationFn: async ({ userId, password }: { userId: string; password: string }) =>
+      (await api.put(`/auth/users/${userId}`, { password })).data,
+    onSuccess: (_r, vars) => {
+      const name = users?.find((u) => u.id === vars.userId)?.name ?? "user";
+      toast(`Password reset for ${name}. Share the temporary password with them.`);
+    },
+    onError: (err: any) => toast(err.response?.data?.error || "Could not reset password.", "error"),
+  });
+
+  async function handleResetPassword(u: User) {
+    const input = await prompt({
+      title: `Reset password for ${u.name}`,
+      message: "Enter a temporary password (at least 8 characters). Tell them to change it after logging in (click their name in the header).",
+      placeholder: "Temporary password",
+      confirmLabel: "Reset password",
+    });
+    if (input === null) return;
+    if (input.length < 8) return toast("Password must be at least 8 characters.", "error");
+    resetPassword.mutate({ userId: u.id, password: input });
   }
 
   function handleSubmit(e: FormEvent) {
@@ -274,7 +296,10 @@ export default function Admin() {
                     }}
                   />
                 </td>
-                <td className="py-2 px-4">
+                <td className="py-2 px-4 text-right whitespace-nowrap">
+                  <button className="text-brand-600 hover:underline mr-3" onClick={() => handleResetPassword(u)}>
+                    Reset password
+                  </button>
                   {u.id !== currentUser?.id && (
                     <button className="text-red-600 hover:underline" onClick={() => handleDelete(u)}>
                       Delete
