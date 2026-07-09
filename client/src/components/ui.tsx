@@ -45,6 +45,11 @@ const STATUS_STYLES: Record<EngagementStatus, string> = {
   COMPLETED: "bg-green-100 text-green-700",
 };
 
+/** Color classes for a status (for badges or colored selects). */
+export function statusClasses(status: EngagementStatus): string {
+  return STATUS_STYLES[status] ?? "bg-gray-100 text-gray-600";
+}
+
 /** Color-coded engagement status pill. */
 export function StatusBadge({ status }: { status: EngagementStatus }) {
   return (

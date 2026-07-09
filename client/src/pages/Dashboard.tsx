@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { StatusBadge, useSort, SortTh } from "../components/ui";
+import { statusClasses, useSort } from "../components/ui";
 import {
   DueDate,
   ENGAGEMENT_STATUS_LABELS,
@@ -197,7 +197,7 @@ export default function Dashboard() {
                     </td>
                     <td className="py-2 pr-4 whitespace-nowrap">
                       <select
-                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                        className={`rounded-full border-0 px-3 py-1 text-xs font-medium cursor-pointer ${statusClasses(item.status)}`}
                         value={item.status}
                         onChange={(e) => updateEng.mutate({ engagementId: item.id, data: { status: e.target.value } })}
                       >
