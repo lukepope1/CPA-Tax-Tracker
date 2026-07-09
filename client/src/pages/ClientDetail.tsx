@@ -257,6 +257,29 @@ export default function ClientDetail() {
 
   const childrenOf = (parentId: string) => (client?.engagements ?? []).filter((e) => e.parentEngagementId === parentId);
 
+  async function handleExtensionToggle(eng: Engagement, checked: boolean) {
+    updateEngagement.mutate({ engagementId: eng.id, data: { extensionFiled: checked } });
+
+    // When extending a federal return that has state/city sub-returns, offer to
+    // extend those too (states sometimes need separate work, so "No" is valid).
+    const children = childrenOf(eng.id);
+    if (children.length === 0) return;
+    const names = children.map((c) => c.jurisdiction).join(", ");
+    const ok = await confirm({
+      title: checked ? "Also extend the state/city returns?" : "Also remove the state/city extensions?",
+      message: checked
+        ? `Mark the extension as filed for ${names} as well? Choose No if the state/city extensions need separate handling.`
+        : `Also un-mark the extension for ${names}?`,
+      confirmLabel: checked ? "Yes, extend all" : "Yes, remove all",
+      cancelLabel: "No, federal only",
+    });
+    if (ok) {
+      for (const c of children) {
+        updateEngagement.mutate({ engagementId: c.id, data: { extensionFiled: checked } });
+      }
+    }
+  }
+
   function renderDueDates(eng: Engagement) {
     return (
       <table className="w-full text-sm">
@@ -320,6 +343,14 @@ export default function ClientDetail() {
                 <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>
               ))}
             </select>
+            <label className="flex items-center gap-1 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={child.extensionFiled}
+                onChange={(e) => updateEngagement.mutate({ engagementId: child.id, data: { extensionFiled: e.target.checked } })}
+              />
+              Ext. filed
+            </label>
             <button className="text-sm text-red-600 hover:underline" onClick={() => handleDeleteEngagement(child)}>Delete</button>
           </div>
         </div>
@@ -584,7 +615,7 @@ export default function ClientDetail() {
                     <input
                       type="checkbox"
                       checked={eng.extensionFiled}
-                      onChange={(e) => updateEngagement.mutate({ engagementId: eng.id, data: { extensionFiled: e.target.checked } })}
+                      onChange={(e) => handleExtensionToggle(eng, e.target.checked)}
                     />
                     Extension filed
                   </label>
