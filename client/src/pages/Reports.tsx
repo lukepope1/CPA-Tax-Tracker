@@ -149,7 +149,7 @@ export default function Reports() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
         {tab === "staff" && (
           <table className="w-full text-sm">
             <thead>

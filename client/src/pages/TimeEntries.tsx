@@ -224,7 +224,7 @@ export default function TimeEntries() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold text-gray-800">Time Entry</h1>
 
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Timer</h2>
         {!timer ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -298,7 +298,7 @@ export default function TimeEntries() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
           <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={clientId} onChange={(e) => { setClientId(e.target.value); setEngagementId(""); }} required>
@@ -357,7 +357,7 @@ export default function TimeEntries() {
         </div>
       </form>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
           <h2 className="text-sm font-semibold text-gray-700">My Time Entries</h2>
           <span className="text-sm text-gray-500">Total: {totalHours.toFixed(2)} hrs &middot; {currency(totalValue)}</span>

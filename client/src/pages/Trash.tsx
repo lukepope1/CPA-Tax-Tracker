@@ -110,7 +110,7 @@ export default function Trash() {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b bg-gray-50">
@@ -151,7 +151,7 @@ export default function Trash() {
       <div>
         <h2 className="text-lg font-semibold text-gray-800">Deleted Returns</h2>
         <p className="text-sm text-gray-500 mb-2">Deleted returns are kept for 30 days, then permanently removed.</p>
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">

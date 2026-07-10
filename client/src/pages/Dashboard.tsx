@@ -145,7 +145,7 @@ export default function Dashboard() {
         <StatCard label="Hours this week" value={summary?.hoursThisWeek ?? "-"} accent="text-gray-800" />
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-gray-700">
             {isUnassigned
@@ -235,7 +235,7 @@ export default function Dashboard() {
       </div>
 
       {summary && summary.engagementsByStatus.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Engagements by status</h2>
           <div className="flex gap-4 flex-wrap">
             {summary.engagementsByStatus.map((s) => (
@@ -249,13 +249,13 @@ export default function Dashboard() {
       )}
 
       {overdue && overdue.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <h2 className="text-sm font-semibold text-red-700 mb-3">Overdue ({overdue.length})</h2>
           <DueDateTable items={overdue} />
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Due in the next 14 days</h2>
         {upcoming && upcoming.length > 0 ? (
           <DueDateTable items={upcoming} />

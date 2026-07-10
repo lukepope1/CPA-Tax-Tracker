@@ -259,15 +259,15 @@ export default function Billing() {
 
       {view === "outstanding" && data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Total Outstanding WIP</div>
             <div className="text-2xl font-bold text-brand-600">{currency(data.totals.wipValue)}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Unbilled Hours</div>
             <div className="text-2xl font-bold text-gray-800">{data.totals.wipHours.toFixed(1)}</div>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Billed to Date</div>
             <div className="text-2xl font-bold text-gray-800">{currency(data.totals.billedTotal)}</div>
           </div>
@@ -281,15 +281,15 @@ export default function Billing() {
         const totalRealization = totalStd > 0 ? totalBilled / totalStd : null;
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg shadow p-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="text-xs font-medium text-gray-500 uppercase">Total Billed</div>
               <div className="text-2xl font-bold text-brand-600">{currency(totalBilled)}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="text-xs font-medium text-gray-500 uppercase">Total Hours Billed</div>
               <div className="text-2xl font-bold text-gray-800">{totalHours.toFixed(1)}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="text-xs font-medium text-gray-500 uppercase">Total Realization</div>
               <div className={`text-2xl font-bold ${realizationColor(totalRealization)}`}>
                 {totalRealization != null ? `${(totalRealization * 100).toFixed(0)}%` : "—"}
@@ -300,7 +300,7 @@ export default function Billing() {
       })()}
 
       {view === "outstanding" && (
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-gray-500 border-b bg-gray-50">
@@ -376,7 +376,7 @@ export default function Billing() {
       )}
 
       {view === "billed" && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">

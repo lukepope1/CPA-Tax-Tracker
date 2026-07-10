@@ -386,7 +386,7 @@ export default function ClientDetail() {
       </div>
 
       {editing && (
-        <form onSubmit={saveClient} className="bg-white rounded-lg shadow p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={saveClient} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
             <select
@@ -487,7 +487,7 @@ export default function ClientDetail() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Form Type</label>
             <select className="border border-gray-300 rounded px-3 py-2 text-sm" value={formType} onChange={(e) => setFormType(e.target.value as FormType)}>
@@ -582,7 +582,7 @@ export default function ClientDetail() {
       <div className="space-y-4">
         {client.engagements && client.engagements.some((e) => !e.parentEngagementId) ? (
           client.engagements.filter((e) => !e.parentEngagementId).map((eng) => (
-            <div key={eng.id} className="bg-white rounded-lg shadow p-4">
+            <div key={eng.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h3 className="font-semibold text-gray-800">
                   {FORM_TYPE_LABELS[eng.formType]} &mdash; Tax Year {eng.taxYear}
@@ -821,7 +821,7 @@ export default function ClientDetail() {
           {bills && bills.length > 0 ? (
             <div className="space-y-3">
               {bills.map((b) => (
-                <div key={b.id} className="bg-white rounded-lg shadow p-4">
+                <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="font-semibold text-gray-800">
                       {currency(b.amount)}{" "}
