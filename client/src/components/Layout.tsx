@@ -14,6 +14,7 @@ const baseNav = [
 const adminNav = [
   { to: "/firm", label: "Firm" },
   { to: "/billing", label: "Billing" },
+  { to: "/reports", label: "Reports" },
   { to: "/admin", label: "Admin" },
 ];
 

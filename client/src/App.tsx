@@ -10,6 +10,7 @@ import TimeEntries from "./pages/TimeEntries";
 import Trash from "./pages/Trash";
 import Billing from "./pages/Billing";
 import FirmDashboard from "./pages/FirmDashboard";
+import Reports from "./pages/Reports";
 import Admin from "./pages/Admin";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/trash" element={<Trash />} />
         <Route path="/billing" element={<AdminRoute><Billing /></AdminRoute>} />
         <Route path="/firm" element={<AdminRoute><FirmDashboard /></AdminRoute>} />
+        <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
         <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
