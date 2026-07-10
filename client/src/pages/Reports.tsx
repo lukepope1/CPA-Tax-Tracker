@@ -91,6 +91,26 @@ export default function Reports() {
         "90+ days": Number(r.d90plus.toFixed(2)),
         Total: Number(r.total.toFixed(2)),
       }));
+      if (rows.length > 0) {
+        const t = aging.data.reduce(
+          (a, r) => ({
+            d0_30: a.d0_30 + r.d0_30,
+            d31_60: a.d31_60 + r.d31_60,
+            d61_90: a.d61_90 + r.d61_90,
+            d90plus: a.d90plus + r.d90plus,
+            total: a.total + r.total,
+          }),
+          { d0_30: 0, d31_60: 0, d61_90: 0, d90plus: 0, total: 0 }
+        );
+        rows.push({
+          Client: "TOTAL",
+          "0-30 days": Number(t.d0_30.toFixed(2)),
+          "31-60 days": Number(t.d31_60.toFixed(2)),
+          "61-90 days": Number(t.d61_90.toFixed(2)),
+          "90+ days": Number(t.d90plus.toFixed(2)),
+          Total: Number(t.total.toFixed(2)),
+        });
+      }
     } else if (tab === "turnaround" && turnaround.data) {
       sheet = "Turnaround";
       rows = turnaround.data.rows.map((r) => ({
@@ -226,6 +246,30 @@ export default function Reports() {
               ))}
               {aging.data?.length === 0 && <tr><td colSpan={6}><EmptyState title="No outstanding WIP" /></td></tr>}
             </tbody>
+            {aging.data && aging.data.length > 0 && (() => {
+              const t = aging.data.reduce(
+                (a, r) => ({
+                  d0_30: a.d0_30 + r.d0_30,
+                  d31_60: a.d31_60 + r.d31_60,
+                  d61_90: a.d61_90 + r.d61_90,
+                  d90plus: a.d90plus + r.d90plus,
+                  total: a.total + r.total,
+                }),
+                { d0_30: 0, d31_60: 0, d61_90: 0, d90plus: 0, total: 0 }
+              );
+              return (
+                <tfoot>
+                  <tr className="border-t bg-gray-50 font-semibold text-gray-800">
+                    <td className="py-2 px-4">Total</td>
+                    <td className="py-2 px-4 text-right">{currency(t.d0_30)}</td>
+                    <td className="py-2 px-4 text-right">{currency(t.d31_60)}</td>
+                    <td className="py-2 px-4 text-right">{currency(t.d61_90)}</td>
+                    <td className={`py-2 px-4 text-right ${t.d90plus > 0 ? "text-red-600" : ""}`}>{currency(t.d90plus)}</td>
+                    <td className="py-2 px-4 text-right">{currency(t.total)}</td>
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         )}
 
