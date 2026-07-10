@@ -77,20 +77,26 @@ router.post("/rollforward", requireAdmin, async (req, res) => {
 
   let created = 0;
   let skipped = 0;
-  for (const eng of source) {
+  // Two passes: create top-level returns first, then sub-returns linked to the
+  // new year's parent (so the state/city sub-task structure carries forward).
+  const newParentByKey = new Map<string, string>(); // clientId|formType -> new top-level id
+  const ordered = [...source.filter((e) => !e.parentEngagementId), ...source.filter((e) => e.parentEngagementId)];
+
+  for (const eng of ordered) {
     const key = `${eng.clientId}|${eng.formType}|${eng.jurisdiction}`;
     if (seen.has(key)) {
       skipped++;
       continue;
     }
+    const isTopLevel = !eng.parentEngagementId;
     const generated = generateDueDates(
       eng.formType as FormType,
       toYear,
       eng.fiscalYearEndMonth,
       eng.fiscalYearEndDay,
-      !eng.jurisdiction || eng.jurisdiction === "Federal" // estimates only on federal returns
+      isTopLevel // estimates only on the top-level (federal) return
     );
-    await prisma.engagement.create({
+    const createdEng = await prisma.engagement.create({
       data: {
         clientId: eng.clientId,
         formType: eng.formType,
@@ -101,9 +107,12 @@ router.post("/rollforward", requireAdmin, async (req, res) => {
         status: "NOT_STARTED",
         assignedToId: eng.assignedToId,
         projectedFee: eng.projectedFee, // carry the engagement-letter fee forward as the starting projection
+        parentEngagementId: isTopLevel ? null : newParentByKey.get(`${eng.clientId}|${eng.formType}`) ?? null,
         dueDates: { create: generated.map((d) => ({ type: d.type, dueDate: d.dueDate })) },
+        statusChanges: { create: { status: "NOT_STARTED", changedById: req.user!.userId } },
       },
     });
+    if (isTopLevel) newParentByKey.set(`${eng.clientId}|${eng.formType}`, createdEng.id);
     seen.add(key);
     created++;
   }
