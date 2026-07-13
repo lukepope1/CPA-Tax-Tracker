@@ -142,7 +142,7 @@ export default function Dashboard() {
         <StatCard label="Overdue" value={summary?.overdueCount ?? "-"} accent="text-red-600" />
         <StatCard label="Due in 7 days" value={summary?.dueThisWeek ?? "-"} accent="text-amber-600" />
         <StatCard label="Due in 30 days" value={summary?.dueThisMonth ?? "-"} accent="text-brand-600" />
-        <StatCard label="Hours this week" value={summary?.hoursThisWeek ?? "-"} accent="text-gray-800" />
+        <StatCard label="Hours this week" value={summary != null ? summary.hoursThisWeek.toFixed(1) : "-"} accent="text-gray-800" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">

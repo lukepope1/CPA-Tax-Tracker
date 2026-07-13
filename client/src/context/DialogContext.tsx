@@ -57,10 +57,22 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     <Ctx.Provider value={{ confirm, prompt }}>
       {children}
       {state.kind !== "none" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onMouseDown={() => close(state.kind === "prompt" ? null : false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onMouseDown={() => close(state.kind === "prompt" ? null : false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") close(state.kind === "prompt" ? null : false);
+            if (e.key === "Enter" && state.kind === "confirm") close(true);
+          }}
+        >
           <div
-            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out]"
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl animate-[fadeIn_0.12s_ease-out] outline-none"
             onMouseDown={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            ref={(el) => {
+              // Focus the panel so Escape/Enter work immediately on confirm dialogs.
+              if (el && state.kind === "confirm") el.focus();
+            }}
           >
             <h3 className="font-heading text-lg font-semibold text-gray-800">{state.opts.title}</h3>
             {state.opts.message && <p className="mt-1.5 whitespace-pre-line text-sm text-gray-500">{state.opts.message}</p>}

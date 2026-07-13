@@ -106,10 +106,13 @@ export default function Trash() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-800">Trash</h1>
         <p className="text-sm text-gray-500">
-          Deleted clients are kept here for {RETENTION_DAYS} days, then permanently removed. Restore any client to bring it back.
+          Deleted items wait here before being permanently removed — restore anything that was deleted by mistake.
         </p>
       </div>
 
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800">Deleted Clients</h2>
+        <p className="text-sm text-gray-500 mb-2">Deleted clients are kept for 90 days, then permanently removed.</p>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -146,6 +149,7 @@ export default function Trash() {
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       <div>

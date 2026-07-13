@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   Client,
@@ -365,6 +365,7 @@ export default function ClientDetail() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
+          <Link to="/clients" className="text-xs text-gray-400 hover:text-brand-600">← Back to Clients</Link>
           <h1 className="text-2xl font-semibold text-gray-800">{client.name}</h1>
           <p className="text-sm text-gray-500">
             {client.clientType && <>{client.clientType} &middot; </>}

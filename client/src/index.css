@@ -53,6 +53,11 @@ thead th {
   font-weight: 600;
 }
 
+/* Tabular numerals so dollar/hour columns align vertically */
+td, .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Slim, subtle scrollbars for scrolling tables */
 .overflow-x-auto::-webkit-scrollbar,
 .overflow-y-auto::-webkit-scrollbar {
