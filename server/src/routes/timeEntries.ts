@@ -77,6 +77,7 @@ router.put("/:id", async (req, res) => {
   const entry = await prisma.timeEntry.update({
     where: { id: req.params.id },
     data: {
+      userId: data.userId,
       clientId: data.clientId,
       engagementId: data.engagementId === undefined ? undefined : data.engagementId || null,
       date: data.date ? new Date(data.date) : undefined,

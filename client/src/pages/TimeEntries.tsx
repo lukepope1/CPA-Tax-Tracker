@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Client, Engagement, engagementLabel, TimeEntry } from "../lib/types";
+import { Client, Engagement, engagementLabel, TimeEntry, User } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
@@ -40,6 +40,9 @@ export default function TimeEntries() {
   const [billable, setBillable] = useState(true);
   const [rate, setRate] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const isAdmin = user?.role === "ADMIN";
+  const [entryFor, setEntryFor] = useState<string>(""); // staff the entry is logged for ("" = self)
+  const [viewUser, setViewUser] = useState<string>(""); // whose entries the table shows ("" = self)
 
   const [timer, setTimer] = useState<StoredTimer | null>(() => {
     const raw = localStorage.getItem(TIMER_STORAGE_KEY);
@@ -58,6 +61,12 @@ export default function TimeEntries() {
   const { data: clients } = useQuery<Client[]>({
     queryKey: ["clients"],
     queryFn: async () => (await api.get("/clients")).data,
+  });
+
+  const { data: staffList } = useQuery<User[]>({
+    queryKey: ["users"],
+    queryFn: async () => (await api.get("/auth/users")).data,
+    enabled: isAdmin,
   });
 
   const { data: engagements } = useQuery<Engagement[]>({
@@ -100,9 +109,10 @@ export default function TimeEntries() {
     setTimerEngagementId("");
   }
 
+  const viewingId = viewUser || user?.id;
   const { data: entries, isLoading } = useQuery<TimeEntry[]>({
-    queryKey: ["time-entries", user?.id],
-    queryFn: async () => (await api.get("/time-entries", { params: { userId: user?.id } })).data,
+    queryKey: ["time-entries", viewingId],
+    queryFn: async () => (await api.get("/time-entries", { params: { userId: viewingId } })).data,
     enabled: !!user,
   });
 
@@ -110,6 +120,7 @@ export default function TimeEntries() {
     mutationFn: async () =>
       (
         await api.post("/time-entries", {
+          userId: entryFor || undefined,
           clientId,
           engagementId: engagementId || undefined,
           date: new Date(date).toISOString(),
@@ -131,6 +142,7 @@ export default function TimeEntries() {
     mutationFn: async () =>
       (
         await api.put(`/time-entries/${editingId}`, {
+          userId: entryFor || undefined,
           clientId,
           engagementId: engagementId || null,
           date: new Date(date).toISOString(),
@@ -158,6 +170,7 @@ export default function TimeEntries() {
 
   function resetForm() {
     setEditingId(null);
+    setEntryFor("");
     setClientId("");
     setEngagementId("");
     setDate(todayISO());
@@ -169,6 +182,7 @@ export default function TimeEntries() {
 
   function startEdit(entry: TimeEntry) {
     setEditingId(entry.id);
+    setEntryFor(entry.userId);
     setClientId(entry.clientId);
     setEngagementId(entry.engagementId ?? "");
     setDate(entry.date.slice(0, 10));
@@ -299,6 +313,20 @@ export default function TimeEntries() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {isAdmin && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
+            <select
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              value={entryFor || user?.id || ""}
+              onChange={(e) => setEntryFor(e.target.value === user?.id ? "" : e.target.value)}
+            >
+              {staffList?.map((u) => (
+                <option key={u.id} value={u.id}>{u.id === user?.id ? `${u.name} (me)` : u.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
           <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={clientId} onChange={(e) => { setClientId(e.target.value); setEngagementId(""); }} required>
@@ -358,8 +386,23 @@ export default function TimeEntries() {
       </form>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-          <h2 className="text-sm font-semibold text-gray-700">My Time Entries</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b bg-gray-50">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">
+              {viewingId === user?.id ? "My Time Entries" : `${staffList?.find((u) => u.id === viewingId)?.name ?? ""}'s Time Entries`}
+            </h2>
+            {isAdmin && (
+              <select
+                className="border border-gray-300 rounded px-2 py-1 text-xs"
+                value={viewingId ?? ""}
+                onChange={(e) => setViewUser(e.target.value === user?.id ? "" : e.target.value)}
+              >
+                {staffList?.map((u) => (
+                  <option key={u.id} value={u.id}>{u.id === user?.id ? `${u.name} (me)` : u.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <span className="text-sm text-gray-500">Total: {totalHours.toFixed(2)} hrs &middot; {currency(totalValue)}</span>
         </div>
         <table className="w-full text-sm">
