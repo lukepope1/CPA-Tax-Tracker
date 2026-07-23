@@ -33,7 +33,17 @@ router.get("/summary", async (req, res) => {
     ],
   };
 
-  const engagementWhere = unassigned ? { assignedToId: null } : userId ? { assignedToId: userId } : undefined;
+  // Status breakdown must match the Inbox above it: active top-level returns only
+  // (exclude Completed, soft-deleted returns, trashed clients, and state/city
+  // sub-returns so a federal return with children isn't counted twice).
+  const engagementWhere: Record<string, unknown> = {
+    deletedAt: null,
+    client: { is: { deletedAt: null } },
+    parentEngagementId: null,
+    status: { not: "COMPLETED" },
+  };
+  if (unassigned) engagementWhere.assignedToId = null;
+  else if (userId) engagementWhere.assignedToId = userId;
   const hoursWhere: Record<string, unknown> = { date: { gte: weekAgo, lte: now } };
   if (unassigned) hoursWhere.id = "__none__"; // no personal hours for the pool
   else if (userId) hoursWhere.userId = userId;
