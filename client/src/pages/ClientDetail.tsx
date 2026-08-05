@@ -171,6 +171,126 @@ export default function ClientDetail() {
     onError: (err: any) => toast(err.response?.data?.error || "Could not update client.", "error"),
   });
 
+  const addOpenItem = useMutation({
+    mutationFn: async (data: { engagementId: string; description: string }) =>
+      (await api.post("/open-items", data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client", id] }),
+    onError: () => toast("Could not add the item.", "error"),
+  });
+
+  const updateOpenItem = useMutation({
+    mutationFn: async ({ itemId, data }: { itemId: string; data: Record<string, unknown> }) =>
+      (await api.put(`/open-items/${itemId}`, data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client", id] }),
+  });
+
+  const deleteOpenItem = useMutation({
+    mutationFn: async (itemId: string) => api.delete(`/open-items/${itemId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client", id] }),
+  });
+
+  // Adding the first open item usually means the return is now waiting on the
+  // client, and clearing the last one usually means it's unblocked — offer the
+  // matching status change rather than silently making it.
+  async function handleAddOpenItem(eng: Engagement, description: string) {
+    await addOpenItem.mutateAsync({ engagementId: eng.id, description });
+    const outstanding = (eng.openItems ?? []).filter((i) => !i.receivedAt).length;
+    if (outstanding === 0 && eng.status !== "MISSING_ITEMS") {
+      const ok = await confirm({
+        title: "Set status to Missing Items?",
+        message: "This return is now waiting on the client for an item.",
+        confirmLabel: "Set status",
+      });
+      if (ok) updateEngagement.mutate({ engagementId: eng.id, data: { status: "MISSING_ITEMS" } });
+    }
+  }
+
+  async function handleReceiveOpenItem(eng: Engagement, itemId: string, received: boolean) {
+    await updateOpenItem.mutateAsync({ itemId, data: { received } });
+    if (!received) return;
+    const stillOpen = (eng.openItems ?? []).filter((i) => !i.receivedAt && i.id !== itemId).length;
+    if (stillOpen === 0 && eng.status === "MISSING_ITEMS") {
+      const ok = await confirm({
+        title: "Everything received — update status?",
+        message: "No open items are left on this return. Move it to Information Received?",
+        confirmLabel: "Update status",
+      });
+      if (ok) updateEngagement.mutate({ engagementId: eng.id, data: { status: "INFORMATION_RECEIVED" } });
+    }
+  }
+
+  function renderOpenItems(eng: Engagement) {
+    const items = eng.openItems ?? [];
+    const outstanding = items.filter((i) => !i.receivedAt);
+    const oldest = outstanding[0];
+    const waitingDays = oldest
+      ? Math.floor((Date.now() - new Date(oldest.requestedAt).getTime()) / 86400000)
+      : null;
+
+    return (
+      <div className="mt-3 border-t pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <div className="text-xs font-medium text-gray-500">
+            Open items{outstanding.length > 0 && ` (${outstanding.length} outstanding)`}
+            {waitingDays != null && (
+              <span className={`ml-2 rounded px-1.5 py-0.5 ${waitingDays >= 14 ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                waiting {waitingDays} day{waitingDays === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+          <button
+            className="text-xs text-brand-600 hover:underline"
+            onClick={async () => {
+              const description = await prompt({
+                title: "What are we waiting on?",
+                message: "e.g. 2025 W-2, K-1 from Ronoa, answer on vehicle mileage",
+                placeholder: "Description",
+                confirmLabel: "Add item",
+              });
+              if (description && description.trim()) handleAddOpenItem(eng, description.trim());
+            }}
+          >
+            + Add open item
+          </button>
+        </div>
+
+        {items.length === 0 ? (
+          <p className="text-xs text-gray-400">Nothing outstanding.</p>
+        ) : (
+          <ul className="space-y-1">
+            {items.map((item) => {
+              const days = Math.floor((Date.now() - new Date(item.requestedAt).getTime()) / 86400000);
+              return (
+                <li key={item.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!item.receivedAt}
+                    onChange={(e) => handleReceiveOpenItem(eng, item.id, e.target.checked)}
+                  />
+                  <span className={item.receivedAt ? "text-gray-400 line-through" : "text-gray-700"}>
+                    {item.description}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {item.receivedAt
+                      ? `received ${formatDate(item.receivedAt)}`
+                      : `requested ${formatDate(item.requestedAt)} · ${days}d`}
+                  </span>
+                  <button
+                    className="ml-auto text-xs text-gray-400 hover:text-red-600"
+                    onClick={() => deleteOpenItem.mutate(item.id)}
+                    title="Remove this item"
+                  >
+                    ✕
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
   function startEditClient() {
     if (!client) return;
     setEdit({
@@ -783,6 +903,8 @@ export default function ClientDetail() {
               })()}
 
               {renderDueDates(eng)}
+
+              {renderOpenItems(eng)}
 
               {childrenOf(eng.id).length > 0 && (
                 <div className="mt-3 border-t pt-3">

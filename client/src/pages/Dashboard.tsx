@@ -38,10 +38,18 @@ interface InboxItem {
   statusSince: string | null;
   priority: number | null;
   assignedToId: string | null;
+  openItemCount: number;
+  oldestOpenItem: string | null;
 }
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+// Days since the oldest outstanding request on a return.
+function waitingDays(item: InboxItem) {
+  if (!item.oldestOpenItem) return 0;
+  return Math.floor((Date.now() - new Date(item.oldestOpenItem).getTime()) / 86400000);
 }
 
 export default function Dashboard() {
@@ -170,6 +178,7 @@ export default function Dashboard() {
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("status")}>Status</th>
                 <th className="py-2 pr-4">Assigned To</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("statusSince")}>Status Since</th>
+                <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("oldestOpenItem")}>Waiting On</th>
                 <th className="py-2 pr-4 cursor-pointer hover:text-gray-700" onClick={() => sortByColumn("nextDueDate")}>Next Due</th>
               </tr>
             </thead>
@@ -219,6 +228,21 @@ export default function Dashboard() {
                       </select>
                     </td>
                     <td className="py-2 pr-4 whitespace-nowrap text-gray-500">{item.statusSince ? formatDate(item.statusSince) : "—"}</td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {item.openItemCount > 0 ? (
+                        <Link
+                          to={`/clients/${item.clientId}`}
+                          className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                            waitingDays(item) >= 14 ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                          }`}
+                          title="Open items outstanding — click to see the list"
+                        >
+                          {item.openItemCount} item{item.openItemCount === 1 ? "" : "s"} · {waitingDays(item)}d
+                        </Link>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className={`py-2 pr-4 whitespace-nowrap ${overdueItem ? "text-red-700 font-medium" : ""}`}>
                       {item.nextDueDate
                         ? `${formatDate(item.nextDueDate)}${item.nextDueType ? ` (${DUE_DATE_TYPE_LABELS[item.nextDueType]})` : ""}`

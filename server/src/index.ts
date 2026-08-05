@@ -10,6 +10,7 @@ import dashboardRouter from "./routes/dashboard";
 import billingRouter from "./routes/billing";
 import exportRouter from "./routes/export";
 import reportsRouter from "./routes/reports";
+import openItemsRouter from "./routes/openItems";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -34,6 +35,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/export", exportRouter);
 app.use("/api/reports", reportsRouter);
+app.use("/api/open-items", openItemsRouter);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

@@ -4,9 +4,9 @@ import * as XLSX from "xlsx";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { Loading, EmptyState } from "../components/ui";
-import { FORM_TYPE_LABELS, FormType } from "../lib/types";
+import { ENGAGEMENT_STATUS_LABELS, EngagementStatus, FORM_TYPE_LABELS, FormType } from "../lib/types";
 
-type ReportKey = "staff" | "clients" | "aging" | "turnaround";
+type ReportKey = "staff" | "clients" | "aging" | "turnaround" | "status" | "capacity" | "profit";
 
 interface StaffRow { name: string; hours: number; billableHours: number; value: number }
 interface ClientRow { name: string; hours: number; value: number }
@@ -14,6 +14,19 @@ interface AgingRow { name: string; d0_30: number; d31_60: number; d61_90: number
 interface TurnRow {
   client: string; formType: FormType; jurisdiction: string | null; taxYear: number;
   assignedTo: string; received: string; completed: string; days: number;
+}
+interface StatusRow {
+  status: EngagementStatus; stints: number; totalDays: number;
+  openNow: number; longestDays: number; avgDays: number;
+}
+interface CapacityRow {
+  id: string; name: string;
+  overdue: number; thisWeek: number; nextWeek: number; weeks2to4: number; later: number; noDate: number;
+  returns: number; estHours: number; loggedHours: number; remainingHours: number;
+}
+interface ProfitRow {
+  name: string; hours: number; stdValue: number; billed: number;
+  writeOff: number; realization: number | null; effectiveRate: number | null;
 }
 
 const currency = (n: number) => n.toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -32,6 +45,9 @@ const TABS: { key: ReportKey; label: string }[] = [
   { key: "clients", label: "Client Hours" },
   { key: "aging", label: "WIP Aging" },
   { key: "turnaround", label: "Turnaround" },
+  { key: "status", label: "Time in Status" },
+  { key: "capacity", label: "Capacity" },
+  { key: "profit", label: "Client Profitability" },
 ];
 
 export default function Reports() {
@@ -64,6 +80,24 @@ export default function Reports() {
     queryKey: ["report-turnaround"],
     queryFn: async () => (await api.get("/reports/turnaround")).data,
     enabled: tab === "turnaround",
+  });
+
+  const status = useQuery<StatusRow[]>({
+    queryKey: ["report-time-in-status"],
+    queryFn: async () => (await api.get("/reports/time-in-status")).data,
+    enabled: tab === "status",
+  });
+
+  const capacity = useQuery<CapacityRow[]>({
+    queryKey: ["report-capacity"],
+    queryFn: async () => (await api.get("/reports/capacity")).data,
+    enabled: tab === "capacity",
+  });
+
+  const profit = useQuery<ProfitRow[]>({
+    queryKey: ["report-profit", from, to],
+    queryFn: async () => (await api.get("/reports/client-profitability", { params: dateParams })).data,
+    enabled: tab === "profit",
   });
 
   function exportCurrent() {
@@ -123,6 +157,41 @@ export default function Reports() {
         Completed: fmtDate(r.completed),
         Days: r.days,
       }));
+    } else if (tab === "status" && status.data) {
+      sheet = "Time in Status";
+      rows = status.data.map((r) => ({
+        Status: ENGAGEMENT_STATUS_LABELS[r.status],
+        "Avg Days": Number(r.avgDays.toFixed(1)),
+        "Longest Days": Number(r.longestDays.toFixed(1)),
+        "Times Entered": r.stints,
+        "Sitting There Now": r.openNow,
+      }));
+    } else if (tab === "capacity" && capacity.data) {
+      sheet = "Capacity";
+      rows = capacity.data.map((r) => ({
+        Staff: r.name,
+        Overdue: r.overdue,
+        "Due This Week": r.thisWeek,
+        "Next Week": r.nextWeek,
+        "2-4 Weeks": r.weeks2to4,
+        Later: r.later,
+        "No Due Date": r.noDate,
+        "Open Returns": r.returns,
+        "Est. Hours": Number(r.estHours.toFixed(1)),
+        "Logged": Number(r.loggedHours.toFixed(1)),
+        "Est. Remaining": Number(r.remainingHours.toFixed(1)),
+      }));
+    } else if (tab === "profit" && profit.data) {
+      sheet = "Client Profitability";
+      rows = profit.data.map((r) => ({
+        Client: r.name,
+        Hours: Number(r.hours.toFixed(1)),
+        "Standard Value": Number(r.stdValue.toFixed(2)),
+        Billed: Number(r.billed.toFixed(2)),
+        "Write-Off": Number(r.writeOff.toFixed(2)),
+        "Realization %": r.realization != null ? Number((r.realization * 100).toFixed(0)) : "",
+        "Effective Rate": r.effectiveRate != null ? Number(r.effectiveRate.toFixed(2)) : "",
+      }));
     }
     if (rows.length === 0) return toast("Nothing to export.", "error");
     const wb = XLSX.utils.book_new();
@@ -131,7 +200,7 @@ export default function Reports() {
     toast("Report exported.");
   }
 
-  const usesDates = tab === "staff" || tab === "clients";
+  const usesDates = tab === "staff" || tab === "clients" || tab === "profit";
 
   return (
     <div className="space-y-4">
@@ -307,6 +376,164 @@ export default function Reports() {
                 {turnaround.data?.rows.length === 0 && (
                   <tr><td colSpan={6}><EmptyState title="No completed returns yet" hint="Turnaround appears once returns are marked Completed." /></td></tr>
                 )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === "status" && (
+          <div>
+            <div className="px-4 py-2 border-b bg-gray-50 text-sm text-gray-600">
+              Average days returns spend in each stage, across their full status history. The stage with the
+              highest average is your bottleneck.
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                  <th className="py-2 px-4">Status</th>
+                  <th className="py-2 px-4 text-right">Avg Days</th>
+                  <th className="py-2 px-4 text-right">Longest</th>
+                  <th className="py-2 px-4 text-right">Times Entered</th>
+                  <th className="py-2 px-4 text-right">Sitting There Now</th>
+                </tr>
+              </thead>
+              <tbody>
+                {status.isLoading && <tr><td colSpan={5}><Loading /></td></tr>}
+                {status.data?.map((r, i) => (
+                  <tr key={r.status} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="py-2 px-4 font-medium text-gray-800">
+                      {ENGAGEMENT_STATUS_LABELS[r.status] ?? r.status}
+                      {i === 0 && r.avgDays > 0 && (
+                        <span className="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">Bottleneck</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-4 text-right font-semibold">{r.avgDays.toFixed(1)}</td>
+                    <td className="py-2 px-4 text-right text-gray-500">{r.longestDays.toFixed(0)}</td>
+                    <td className="py-2 px-4 text-right text-gray-500">{r.stints}</td>
+                    <td className={`py-2 px-4 text-right ${r.openNow > 0 ? "font-medium text-gray-800" : "text-gray-400"}`}>{r.openNow}</td>
+                  </tr>
+                ))}
+                {status.data?.length === 0 && (
+                  <tr><td colSpan={5}><EmptyState title="No status history yet" hint="This fills in as returns move through their stages." /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === "capacity" && (
+          <div>
+            <div className="px-4 py-2 border-b bg-gray-50 text-sm text-gray-600">
+              Open returns per person by when they're due. Estimated hours use last year's actual hours for the
+              same return; "Remaining" subtracts what's already been logged.
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                  <th className="py-2 px-4">Staff</th>
+                  <th className="py-2 px-4 text-right text-red-600">Overdue</th>
+                  <th className="py-2 px-4 text-right">This Week</th>
+                  <th className="py-2 px-4 text-right">Next Week</th>
+                  <th className="py-2 px-4 text-right">2–4 Wks</th>
+                  <th className="py-2 px-4 text-right">Later</th>
+                  <th className="py-2 px-4 text-right">No Date</th>
+                  <th className="py-2 px-4 text-right">Open</th>
+                  <th className="py-2 px-4 text-right">Est. Hrs Left</th>
+                </tr>
+              </thead>
+              <tbody>
+                {capacity.isLoading && <tr><td colSpan={9}><Loading /></td></tr>}
+                {capacity.data?.map((r) => (
+                  <tr key={r.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="py-2 px-4 font-medium text-gray-800">{r.name}</td>
+                    <td className={`py-2 px-4 text-right ${r.overdue > 0 ? "text-red-600 font-semibold" : "text-gray-400"}`}>{r.overdue || "—"}</td>
+                    <td className={`py-2 px-4 text-right ${r.thisWeek > 0 ? "text-amber-700 font-medium" : "text-gray-400"}`}>{r.thisWeek || "—"}</td>
+                    <td className="py-2 px-4 text-right">{r.nextWeek || "—"}</td>
+                    <td className="py-2 px-4 text-right">{r.weeks2to4 || "—"}</td>
+                    <td className="py-2 px-4 text-right text-gray-500">{r.later || "—"}</td>
+                    <td className="py-2 px-4 text-right text-gray-500">{r.noDate || "—"}</td>
+                    <td className="py-2 px-4 text-right font-semibold">{r.returns}</td>
+                    <td className="py-2 px-4 text-right">{r.remainingHours > 0 ? r.remainingHours.toFixed(1) : "—"}</td>
+                  </tr>
+                ))}
+                {capacity.data?.length === 0 && (
+                  <tr><td colSpan={9}><EmptyState title="No open returns" /></td></tr>
+                )}
+              </tbody>
+              {capacity.data && capacity.data.length > 0 && (() => {
+                const t = capacity.data.reduce(
+                  (a, r) => ({
+                    overdue: a.overdue + r.overdue,
+                    thisWeek: a.thisWeek + r.thisWeek,
+                    nextWeek: a.nextWeek + r.nextWeek,
+                    weeks2to4: a.weeks2to4 + r.weeks2to4,
+                    later: a.later + r.later,
+                    noDate: a.noDate + r.noDate,
+                    returns: a.returns + r.returns,
+                    remainingHours: a.remainingHours + r.remainingHours,
+                  }),
+                  { overdue: 0, thisWeek: 0, nextWeek: 0, weeks2to4: 0, later: 0, noDate: 0, returns: 0, remainingHours: 0 }
+                );
+                return (
+                  <tfoot>
+                    <tr className="border-t bg-gray-50 font-semibold text-gray-800">
+                      <td className="py-2 px-4">Total</td>
+                      <td className={`py-2 px-4 text-right ${t.overdue > 0 ? "text-red-600" : ""}`}>{t.overdue}</td>
+                      <td className="py-2 px-4 text-right">{t.thisWeek}</td>
+                      <td className="py-2 px-4 text-right">{t.nextWeek}</td>
+                      <td className="py-2 px-4 text-right">{t.weeks2to4}</td>
+                      <td className="py-2 px-4 text-right">{t.later}</td>
+                      <td className="py-2 px-4 text-right">{t.noDate}</td>
+                      <td className="py-2 px-4 text-right">{t.returns}</td>
+                      <td className="py-2 px-4 text-right">{t.remainingHours.toFixed(1)}</td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
+            </table>
+          </div>
+        )}
+
+        {tab === "profit" && (
+          <div>
+            <div className="px-4 py-2 border-b bg-gray-50 text-sm text-gray-600">
+              Standard value of time logged vs. what was actually billed. Healthy realization runs 85–95%;
+              anything under 80% is flagged.
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                  <th className="py-2 px-4">Client</th>
+                  <th className="py-2 px-4 text-right">Hours</th>
+                  <th className="py-2 px-4 text-right">Std Value</th>
+                  <th className="py-2 px-4 text-right">Billed</th>
+                  <th className="py-2 px-4 text-right">Write-Off</th>
+                  <th className="py-2 px-4 text-right">Realization</th>
+                  <th className="py-2 px-4 text-right">Eff. Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profit.isLoading && <tr><td colSpan={7}><Loading /></td></tr>}
+                {profit.data?.map((r) => (
+                  <tr key={r.name} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="py-2 px-4 font-medium text-gray-800">{r.name}</td>
+                    <td className="py-2 px-4 text-right">{r.hours.toFixed(1)}</td>
+                    <td className="py-2 px-4 text-right">{currency(r.stdValue)}</td>
+                    <td className="py-2 px-4 text-right font-medium">{currency(r.billed)}</td>
+                    <td className={`py-2 px-4 text-right ${r.writeOff > 0.005 ? "text-red-600" : "text-gray-400"}`}>
+                      {Math.abs(r.writeOff) < 0.005 ? "—" : currency(r.writeOff)}
+                    </td>
+                    <td
+                      className={`py-2 px-4 text-right font-semibold ${
+                        r.realization == null ? "text-gray-400" : r.realization < 0.8 ? "text-red-600" : "text-green-700"
+                      }`}
+                    >
+                      {r.realization != null ? `${(r.realization * 100).toFixed(0)}%` : "—"}
+                    </td>
+                    <td className="py-2 px-4 text-right">{r.effectiveRate != null ? currency(r.effectiveRate) : "—"}</td>
+                  </tr>
+                ))}
+                {profit.data?.length === 0 && <tr><td colSpan={7}><EmptyState title="No activity in this range" /></td></tr>}
               </tbody>
             </table>
           </div>

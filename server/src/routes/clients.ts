@@ -85,6 +85,7 @@ router.get("/:id", async (req, res) => {
           assignedTo: { select: { id: true, name: true } },
           timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
           statusChanges: { orderBy: { changedAt: "desc" }, include: { changedBy: { select: { name: true } } } },
+          openItems: { orderBy: { requestedAt: "asc" } },
         },
         orderBy: [{ taxYear: "desc" }, { formType: "asc" }],
       },

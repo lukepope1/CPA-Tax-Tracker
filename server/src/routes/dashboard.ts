@@ -88,6 +88,7 @@ router.get("/inbox", async (req, res) => {
         orderBy: { dueDate: "asc" },
       },
       statusChanges: { orderBy: { changedAt: "desc" }, take: 1 },
+      openItems: { where: { receivedAt: null }, orderBy: { requestedAt: "asc" } },
     },
   });
 
@@ -97,6 +98,8 @@ router.get("/inbox", async (req, res) => {
       eng.extensionFiled ? dd.type !== "ORIGINAL_FILING" : dd.type !== "EXTENDED_FILING"
     );
     const next = relevant[0] ?? null;
+    // Oldest outstanding request drives the "waiting on client" aging.
+    const oldestOpenItem = eng.openItems[0]?.requestedAt ?? null;
     return {
       id: eng.id,
       clientId: eng.client.id,
@@ -111,6 +114,8 @@ router.get("/inbox", async (req, res) => {
       statusSince: eng.statusChanges[0]?.changedAt ?? null,
       priority: eng.priority,
       assignedToId: eng.assignedToId,
+      openItemCount: eng.openItems.length,
+      oldestOpenItem,
     };
   });
 

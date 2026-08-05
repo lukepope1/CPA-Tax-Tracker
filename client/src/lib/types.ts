@@ -191,6 +191,16 @@ export interface Engagement {
   billedAmount?: number | null;
   timeEntries?: { hours: number; rate?: number | null; user?: { billableRate?: number | null } | null }[];
   statusChanges?: StatusChange[];
+  openItems?: OpenItem[];
+}
+
+export interface OpenItem {
+  id: string;
+  engagementId: string;
+  description: string;
+  requestedAt: string;
+  receivedAt: string | null;
+  notes: string | null;
 }
 
 export interface StatusChange {

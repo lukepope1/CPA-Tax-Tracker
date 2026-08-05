@@ -100,6 +100,7 @@ model Engagement {
   dueDates      DueDate[]
   timeEntries   TimeEntry[]
   statusChanges StatusChange[]
+  openItems     OpenItem[]
 
   @@index([clientId])
   @@index([taxYear])
@@ -130,6 +131,22 @@ model StatusChange {
   changedAt    DateTime   @default(now())
   changedBy    User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
   changedById  String?
+
+  @@index([engagementId])
+}
+
+// An outstanding item the firm is waiting on from the client (a W-2, a K-1, an
+// answer to a question). Open items are what the "Missing Items" status is
+// actually about, and their age drives the "waiting on client" aging.
+model OpenItem {
+  id           String     @id @default(cuid())
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagementId String
+  description  String
+  requestedAt  DateTime   @default(now())
+  receivedAt   DateTime?
+  notes        String?
+  createdAt    DateTime   @default(now())
 
   @@index([engagementId])
 }
