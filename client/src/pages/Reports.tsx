@@ -55,8 +55,10 @@ export default function Reports() {
   const [tab, setTab] = useState<ReportKey>("staff");
   const [from, setFrom] = useState(yearStartISO());
   const [to, setTo] = useState(todayISO());
+  const [taxYear, setTaxYear] = useState<string>("");
 
   const dateParams = { from, to };
+  const usesTaxYear = tab === "status" || tab === "capacity";
 
   const staff = useQuery<StaffRow[]>({
     queryKey: ["report-staff", from, to],
@@ -82,15 +84,23 @@ export default function Reports() {
     enabled: tab === "turnaround",
   });
 
+  const taxYearParams = taxYear ? { taxYear } : {};
+
+  const taxYears = useQuery<number[]>({
+    queryKey: ["tax-years"],
+    queryFn: async () => (await api.get("/due-dates/tax-years")).data,
+    enabled: usesTaxYear,
+  });
+
   const status = useQuery<StatusRow[]>({
-    queryKey: ["report-time-in-status"],
-    queryFn: async () => (await api.get("/reports/time-in-status")).data,
+    queryKey: ["report-time-in-status", taxYear],
+    queryFn: async () => (await api.get("/reports/time-in-status", { params: taxYearParams })).data,
     enabled: tab === "status",
   });
 
   const capacity = useQuery<CapacityRow[]>({
-    queryKey: ["report-capacity"],
-    queryFn: async () => (await api.get("/reports/capacity")).data,
+    queryKey: ["report-capacity", taxYear],
+    queryFn: async () => (await api.get("/reports/capacity", { params: taxYearParams })).data,
     enabled: tab === "capacity",
   });
 
@@ -215,7 +225,7 @@ export default function Reports() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5">
+        <div className="flex flex-wrap gap-0.5 rounded-lg border border-gray-300 bg-white p-0.5">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -235,6 +245,21 @@ export default function Reports() {
             to
             <input type="date" className="border border-gray-300 rounded px-2 py-1.5" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
+        )}
+        {usesTaxYear && (
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            Tax year
+            <select
+              className="border border-gray-300 rounded px-2 py-1.5"
+              value={taxYear}
+              onChange={(e) => setTaxYear(e.target.value)}
+            >
+              <option value="">All years</option>
+              {taxYears.data?.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </label>
         )}
       </div>
 
@@ -535,6 +560,36 @@ export default function Reports() {
                 ))}
                 {profit.data?.length === 0 && <tr><td colSpan={7}><EmptyState title="No activity in this range" /></td></tr>}
               </tbody>
+              {profit.data && profit.data.length > 0 && (() => {
+                const t = profit.data.reduce(
+                  (a, r) => ({
+                    hours: a.hours + r.hours,
+                    stdValue: a.stdValue + r.stdValue,
+                    billed: a.billed + r.billed,
+                    writeOff: a.writeOff + r.writeOff,
+                  }),
+                  { hours: 0, stdValue: 0, billed: 0, writeOff: 0 }
+                );
+                const realization = t.stdValue > 0 ? t.billed / t.stdValue : null;
+                const effRate = t.hours > 0 ? t.billed / t.hours : null;
+                return (
+                  <tfoot>
+                    <tr className="border-t bg-gray-50 font-semibold text-gray-800">
+                      <td className="py-2 px-4">Firm total</td>
+                      <td className="py-2 px-4 text-right">{t.hours.toFixed(1)}</td>
+                      <td className="py-2 px-4 text-right">{currency(t.stdValue)}</td>
+                      <td className="py-2 px-4 text-right">{currency(t.billed)}</td>
+                      <td className={`py-2 px-4 text-right ${t.writeOff > 0.005 ? "text-red-600" : ""}`}>
+                        {Math.abs(t.writeOff) < 0.005 ? "—" : currency(t.writeOff)}
+                      </td>
+                      <td className={`py-2 px-4 text-right ${realization == null ? "" : realization < 0.8 ? "text-red-600" : "text-green-700"}`}>
+                        {realization != null ? `${(realization * 100).toFixed(0)}%` : "—"}
+                      </td>
+                      <td className="py-2 px-4 text-right">{effRate != null ? currency(effRate) : "—"}</td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
           </div>
         )}

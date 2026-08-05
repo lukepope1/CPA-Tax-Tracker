@@ -191,7 +191,9 @@ router.get("/time-in-status", async (req, res) => {
 // an estimate of the hours still required. The estimate uses last year's actual
 // hours for the same return (falling back to the manually-entered prior-year
 // hours), less whatever has already been logged this year.
-router.get("/capacity", async (_req, res) => {
+router.get("/capacity", async (req, res) => {
+  const taxYear = req.query.taxYear ? Number(req.query.taxYear) : undefined;
+
   const engagements = await prisma.engagement.findMany({
     where: { deletedAt: null, parentEngagementId: null, client: { is: { deletedAt: null } } },
     select: {
@@ -237,6 +239,9 @@ router.get("/capacity", async (_req, res) => {
 
   for (const e of engagements) {
     if (e.status === "COMPLETED") continue;
+    // Filter here rather than in the query: the prior-year lookup above needs
+    // last year's returns to stay in the result set.
+    if (taxYear && e.taxYear !== taxYear) continue;
 
     const id = e.assignedTo?.id ?? "unassigned";
     const cur = map.get(id) ?? { id, name: e.assignedTo?.name ?? "Unassigned", ...blank() };

@@ -226,6 +226,10 @@ export default function ClientDetail() {
     const waitingDays = oldest
       ? Math.floor((Date.now() - new Date(oldest.requestedAt).getTime()) / 86400000)
       : null;
+    // A finished return doesn't need a standing invitation to add more requests,
+    // but any items it already has stay visible for the record.
+    const isDone = eng.status === "COMPLETED";
+    if (isDone && items.length === 0) return null;
 
     return (
       <div className="mt-3 border-t pt-3">
@@ -234,12 +238,12 @@ export default function ClientDetail() {
             Open items{outstanding.length > 0 && ` (${outstanding.length} outstanding)`}
             {waitingDays != null && (
               <span className={`ml-2 rounded px-1.5 py-0.5 ${waitingDays >= 14 ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
-                waiting {waitingDays} day{waitingDays === 1 ? "" : "s"}
+                {waitingDays === 0 ? "requested today" : `waiting ${waitingDays} day${waitingDays === 1 ? "" : "s"}`}
               </span>
             )}
           </div>
           <button
-            className="text-xs text-brand-600 hover:underline"
+            className={`text-xs text-brand-600 hover:underline ${isDone ? "hidden" : ""}`}
             onClick={async () => {
               const description = await prompt({
                 title: "What are we waiting on?",
@@ -273,11 +277,19 @@ export default function ClientDetail() {
                   <span className="text-xs text-gray-400">
                     {item.receivedAt
                       ? `received ${formatDate(item.receivedAt)}`
-                      : `requested ${formatDate(item.requestedAt)} · ${days}d`}
+                      : `requested ${formatDate(item.requestedAt)}${days > 0 ? ` · ${days}d` : ""}`}
                   </span>
                   <button
                     className="ml-auto text-xs text-gray-400 hover:text-red-600"
-                    onClick={() => deleteOpenItem.mutate(item.id)}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Remove this open item?",
+                        message: item.description,
+                        confirmLabel: "Remove",
+                        tone: "danger",
+                      });
+                      if (ok) deleteOpenItem.mutate(item.id);
+                    }}
                     title="Remove this item"
                   >
                     ✕

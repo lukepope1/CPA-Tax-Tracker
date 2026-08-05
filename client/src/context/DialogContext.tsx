@@ -95,6 +95,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
           onKeyDown={(e) => {
             if (e.key === "Escape") close(cancelValue());
             if (e.key === "Enter" && state.kind === "confirm") close(true);
+            if (e.key === "Enter" && state.kind === "choose") close(state.checked);
           }}
         >
           <div
@@ -138,14 +139,21 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                         type="checkbox"
                         className="mt-0.5"
                         checked={isChecked}
-                        onChange={(e) =>
-                          setState({
-                            ...state,
-                            checked: e.target.checked
-                              ? [...state.checked, o.id]
-                              : state.checked.filter((id) => id !== o.id),
-                          })
-                        }
+                        onChange={(e) => {
+                          const nowChecked = e.target.checked;
+                          // Functional update: two quick clicks batch into one
+                          // render, and spreading stale state would drop one.
+                          setState((s) =>
+                            s.kind !== "choose"
+                              ? s
+                              : {
+                                  ...s,
+                                  checked: nowChecked
+                                    ? [...s.checked, o.id]
+                                    : s.checked.filter((id) => id !== o.id),
+                                }
+                          );
+                        }}
                       />
                       <span className="text-sm">
                         <span className="font-medium text-gray-800">{o.label}</span>

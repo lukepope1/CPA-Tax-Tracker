@@ -266,7 +266,8 @@ export default function Dashboard() {
                           }`}
                           title="Open items outstanding — click to see the list"
                         >
-                          {item.openItemCount} item{item.openItemCount === 1 ? "" : "s"} · {waitingDays(item)}d
+                          {item.openItemCount} item{item.openItemCount === 1 ? "" : "s"}
+                          {waitingDays(item) > 0 ? ` · ${waitingDays(item)}d` : ""}
                         </Link>
                       ) : (
                         <span className="text-gray-300">—</span>
