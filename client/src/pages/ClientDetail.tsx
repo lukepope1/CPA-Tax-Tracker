@@ -400,6 +400,32 @@ export default function ClientDetail() {
     }
   }
 
+  // Sub-returns keep their own status, so completing a federal return leaves its
+  // state/city returns showing as unfinished on the Due Dates page. Offer to
+  // carry the status down rather than making people update each one by hand.
+  async function handleStatusChange(eng: Engagement, status: EngagementStatus) {
+    const behind = childrenOf(eng.id).filter((c) => c.status !== status);
+    if (behind.length === 0) {
+      updateEngagement.mutate({ engagementId: eng.id, data: { status } });
+      return;
+    }
+
+    const names = behind.map((c) => c.jurisdiction).join(", ");
+    const label = ENGAGEMENT_STATUS_LABELS[status];
+    const ok = await confirm({
+      title: `Also mark the state/city returns "${label}"?`,
+      message: `${names} ${behind.length === 1 ? "is" : "are"} still at a different status. Choose No if ${
+        behind.length === 1 ? "it" : "they"
+      } still need separate work.`,
+      confirmLabel: `Yes, ${behind.length === 1 ? "both" : "all"}`,
+      cancelLabel: "No, this return only",
+    });
+    updateEngagement.mutate({
+      engagementId: eng.id,
+      data: { status, ...(ok ? { cascadeToSubReturns: true } : {}) },
+    });
+  }
+
   function renderDueDates(eng: Engagement) {
     return (
       <table className="w-full text-sm">
@@ -716,7 +742,7 @@ export default function ClientDetail() {
                   <select
                     className="border border-gray-300 rounded px-2 py-1 text-sm"
                     value={eng.status}
-                    onChange={(e) => updateEngagement.mutate({ engagementId: eng.id, data: { status: e.target.value as EngagementStatus } })}
+                    onChange={(e) => handleStatusChange(eng, e.target.value as EngagementStatus)}
                   >
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>

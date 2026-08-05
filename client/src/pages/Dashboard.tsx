@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useDialog } from "../context/DialogContext";
 import { statusClasses, useSort } from "../components/ui";
 import {
   DueDate,
@@ -40,6 +41,7 @@ interface InboxItem {
   assignedToId: string | null;
   openItemCount: number;
   oldestOpenItem: string | null;
+  subReturns: { jurisdiction: string; status: EngagementStatus }[];
 }
 
 function formatDate(d: string) {
@@ -54,6 +56,7 @@ function waitingDays(item: InboxItem) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { confirm } = useDialog();
   const [viewUserId, setViewUserId] = useState<string>(user?.id ?? "");
   const userId = viewUserId || user?.id || "";
 
@@ -117,6 +120,26 @@ export default function Dashboard() {
     // Optimistically show the new order, then persist it.
     queryClientHook.setQueryData(["dashboard-inbox", userId], next);
     reorder.mutate(next.map((i) => i.id));
+  }
+
+  // State/city sub-returns hold their own status, so completing a federal return
+  // leaves them showing as unfinished. Offer to carry the status down.
+  async function handleStatusChange(item: InboxItem, status: EngagementStatus) {
+    const behind = (item.subReturns ?? []).filter((s) => s.status !== status);
+    if (behind.length === 0) {
+      updateEng.mutate({ engagementId: item.id, data: { status } });
+      return;
+    }
+    const names = behind.map((s) => s.jurisdiction).join(", ");
+    const ok = await confirm({
+      title: `Also mark the state/city returns "${ENGAGEMENT_STATUS_LABELS[status]}"?`,
+      message: `${names} ${behind.length === 1 ? "is" : "are"} still at a different status. Choose No if ${
+        behind.length === 1 ? "it" : "they"
+      } still need separate work.`,
+      confirmLabel: `Yes, ${behind.length === 1 ? "both" : "all"}`,
+      cancelLabel: "No, this return only",
+    });
+    updateEng.mutate({ engagementId: item.id, data: { status, ...(ok ? { cascadeToSubReturns: true } : {}) } });
   }
 
   function sortByColumn(key: keyof InboxItem) {
@@ -208,7 +231,7 @@ export default function Dashboard() {
                       <select
                         className={`rounded-full border-0 px-3 py-1 text-xs font-medium cursor-pointer ${statusClasses(item.status)}`}
                         value={item.status}
-                        onChange={(e) => updateEng.mutate({ engagementId: item.id, data: { status: e.target.value } })}
+                        onChange={(e) => handleStatusChange(item, e.target.value as EngagementStatus)}
                       >
                         {ENGAGEMENT_STATUSES.map((s) => (
                           <option key={s} value={s}>{ENGAGEMENT_STATUS_LABELS[s]}</option>
