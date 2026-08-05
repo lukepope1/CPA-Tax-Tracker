@@ -17,9 +17,26 @@ interface PromptOpts {
   numeric?: boolean;
 }
 
+export interface ChooseOption {
+  id: string;
+  label: string;
+  hint?: string;
+  defaultChecked?: boolean;
+}
+
+interface ChooseOpts {
+  title: string;
+  message?: string;
+  options: ChooseOption[];
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
 interface DialogCtx {
   confirm: (opts: ConfirmOpts) => Promise<boolean>;
   prompt: (opts: PromptOpts) => Promise<string | null>;
+  /** Checkbox list. Resolves to the checked ids, or null if cancelled. */
+  choose: (opts: ChooseOpts) => Promise<string[] | null>;
 }
 
 const Ctx = createContext<DialogCtx | null>(null);
@@ -27,7 +44,8 @@ const Ctx = createContext<DialogCtx | null>(null);
 type State =
   | { kind: "none" }
   | { kind: "confirm"; opts: ConfirmOpts }
-  | { kind: "prompt"; opts: PromptOpts; value: string };
+  | { kind: "prompt"; opts: PromptOpts; value: string }
+  | { kind: "choose"; opts: ChooseOpts; checked: string[] };
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>({ kind: "none" });
@@ -53,15 +71,29 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const choose = useCallback((opts: ChooseOpts) => {
+    setState({
+      kind: "choose",
+      opts,
+      checked: opts.options.filter((o) => o.defaultChecked !== false).map((o) => o.id),
+    });
+    return new Promise<string[] | null>((resolve) => {
+      resolver.current = resolve;
+    });
+  }, []);
+
+  // Cancelling means "don't do anything": null for prompt/choose, false for confirm.
+  const cancelValue = () => (state.kind === "prompt" || state.kind === "choose" ? null : false);
+
   return (
-    <Ctx.Provider value={{ confirm, prompt }}>
+    <Ctx.Provider value={{ confirm, prompt, choose }}>
       {children}
       {state.kind !== "none" && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-          onMouseDown={() => close(state.kind === "prompt" ? null : false)}
+          onMouseDown={() => close(cancelValue())}
           onKeyDown={(e) => {
-            if (e.key === "Escape") close(state.kind === "prompt" ? null : false);
+            if (e.key === "Escape") close(cancelValue());
             if (e.key === "Enter" && state.kind === "confirm") close(true);
           }}
         >
@@ -71,7 +103,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             tabIndex={-1}
             ref={(el) => {
               // Focus the panel so Escape/Enter work immediately on confirm dialogs.
-              if (el && state.kind === "confirm") el.focus();
+              if (el && (state.kind === "confirm" || state.kind === "choose")) el.focus();
             }}
           >
             <h3 className="font-heading text-lg font-semibold text-gray-800">{state.opts.title}</h3>
@@ -93,12 +125,46 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               />
             )}
 
+            {state.kind === "choose" && (
+              <div className="mt-4 max-h-64 space-y-1 overflow-y-auto">
+                {state.opts.options.map((o) => {
+                  const isChecked = state.checked.includes(o.id);
+                  return (
+                    <label
+                      key={o.id}
+                      className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 hover:bg-gray-50"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={isChecked}
+                        onChange={(e) =>
+                          setState({
+                            ...state,
+                            checked: e.target.checked
+                              ? [...state.checked, o.id]
+                              : state.checked.filter((id) => id !== o.id),
+                          })
+                        }
+                      />
+                      <span className="text-sm">
+                        <span className="font-medium text-gray-800">{o.label}</span>
+                        {o.hint && <span className="ml-1.5 text-gray-500">{o.hint}</span>}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="mt-6 flex justify-end gap-2">
               <button
                 className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                onClick={() => close(state.kind === "prompt" ? null : false)}
+                onClick={() => close(cancelValue())}
               >
-                {state.kind === "confirm" ? state.opts.cancelLabel ?? "Cancel" : "Cancel"}
+                {state.kind === "confirm" || state.kind === "choose"
+                  ? state.opts.cancelLabel ?? "Cancel"
+                  : "Cancel"}
               </button>
               <button
                 className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
@@ -106,9 +172,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     ? "bg-red-600 hover:bg-red-700"
                     : "bg-brand-600 hover:bg-brand-700"
                 }`}
-                onClick={() => close(state.kind === "prompt" ? state.value : true)}
+                onClick={() =>
+                  close(state.kind === "prompt" ? state.value : state.kind === "choose" ? state.checked : true)
+                }
               >
-                {state.kind === "confirm" ? state.opts.confirmLabel ?? "Confirm" : state.opts.confirmLabel ?? "OK"}
+                {state.kind === "prompt"
+                  ? state.opts.confirmLabel ?? "OK"
+                  : state.opts.confirmLabel ?? "Confirm"}
               </button>
             </div>
           </div>

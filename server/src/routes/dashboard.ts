@@ -89,7 +89,7 @@ router.get("/inbox", async (req, res) => {
       },
       statusChanges: { orderBy: { changedAt: "desc" }, take: 1 },
       openItems: { where: { receivedAt: null }, orderBy: { requestedAt: "asc" } },
-      subEngagements: { where: { deletedAt: null }, select: { jurisdiction: true, status: true } },
+      subEngagements: { where: { deletedAt: null }, select: { id: true, jurisdiction: true, status: true } },
     },
   });
 

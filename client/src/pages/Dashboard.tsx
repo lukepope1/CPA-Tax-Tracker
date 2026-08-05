@@ -41,7 +41,7 @@ interface InboxItem {
   assignedToId: string | null;
   openItemCount: number;
   oldestOpenItem: string | null;
-  subReturns: { jurisdiction: string; status: EngagementStatus }[];
+  subReturns: { id: string; jurisdiction: string; status: EngagementStatus }[];
 }
 
 function formatDate(d: string) {
@@ -56,7 +56,7 @@ function waitingDays(item: InboxItem) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { confirm } = useDialog();
+  const { choose } = useDialog();
   const [viewUserId, setViewUserId] = useState<string>(user?.id ?? "");
   const userId = viewUserId || user?.id || "";
 
@@ -130,16 +130,22 @@ export default function Dashboard() {
       updateEng.mutate({ engagementId: item.id, data: { status } });
       return;
     }
-    const names = behind.map((s) => s.jurisdiction).join(", ");
-    const ok = await confirm({
-      title: `Also mark the state/city returns "${ENGAGEMENT_STATUS_LABELS[status]}"?`,
-      message: `${names} ${behind.length === 1 ? "is" : "are"} still at a different status. Choose No if ${
-        behind.length === 1 ? "it" : "they"
-      } still need separate work.`,
-      confirmLabel: `Yes, ${behind.length === 1 ? "both" : "all"}`,
-      cancelLabel: "No, this return only",
+    const picked = await choose({
+      title: `Also mark these "${ENGAGEMENT_STATUS_LABELS[status]}"?`,
+      message: "Uncheck any state or city return that still needs work — it will stay as it is.",
+      options: behind.map((s) => ({
+        id: s.id,
+        label: s.jurisdiction,
+        hint: `currently ${ENGAGEMENT_STATUS_LABELS[s.status]}`,
+      })),
+      confirmLabel: "Apply",
+      cancelLabel: "This return only",
     });
-    updateEng.mutate({ engagementId: item.id, data: { status, ...(ok ? { cascadeToSubReturns: true } : {}) } });
+
+    updateEng.mutate({
+      engagementId: item.id,
+      data: { status, ...(picked && picked.length > 0 ? { cascadeToIds: picked } : {}) },
+    });
   }
 
   function sortByColumn(key: keyof InboxItem) {

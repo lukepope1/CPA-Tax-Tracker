@@ -52,7 +52,9 @@ const updateSchema = z.object({
   billedDate: z.string().datetime().optional().nullable(),
   billedAmount: z.number().nonnegative().optional().nullable(),
   // Opt-in: apply this status change to the return's state/city sub-returns too.
+  // `cascadeToIds` picks specific ones; the boolean means "all of them".
   cascadeToSubReturns: z.boolean().optional(),
+  cascadeToIds: z.array(z.string()).optional(),
 });
 
 // Admin: roll forward every return from one tax year to the next. For each
@@ -287,9 +289,15 @@ router.put("/:id", async (req, res) => {
     // Carry the status down to state/city sub-returns when asked. Sub-returns
     // keep their own status by default (a state return can genuinely still be
     // outstanding after the federal is filed), so this only happens on request.
-    if (data.cascadeToSubReturns) {
+    if (data.cascadeToSubReturns || data.cascadeToIds?.length) {
       const children = await prisma.engagement.findMany({
-        where: { parentEngagementId: req.params.id, deletedAt: null, status: { not: data.status } },
+        where: {
+          parentEngagementId: req.params.id,
+          deletedAt: null,
+          status: { not: data.status },
+          // Only the sub-returns the user actually ticked, when a list is given.
+          ...(data.cascadeToIds ? { id: { in: data.cascadeToIds } } : {}),
+        },
         select: { id: true },
       });
       if (children.length > 0) {

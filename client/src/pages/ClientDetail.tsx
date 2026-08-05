@@ -82,7 +82,7 @@ function priorYear(eng: Engagement, all: Engagement[]): { billed: number | null;
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { prompt, confirm } = useDialog();
+  const { prompt, confirm, choose } = useDialog();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -410,19 +410,22 @@ export default function ClientDetail() {
       return;
     }
 
-    const names = behind.map((c) => c.jurisdiction).join(", ");
     const label = ENGAGEMENT_STATUS_LABELS[status];
-    const ok = await confirm({
-      title: `Also mark the state/city returns "${label}"?`,
-      message: `${names} ${behind.length === 1 ? "is" : "are"} still at a different status. Choose No if ${
-        behind.length === 1 ? "it" : "they"
-      } still need separate work.`,
-      confirmLabel: `Yes, ${behind.length === 1 ? "both" : "all"}`,
-      cancelLabel: "No, this return only",
+    const picked = await choose({
+      title: `Also mark these "${label}"?`,
+      message: "Uncheck any state or city return that still needs work — it will stay as it is.",
+      options: behind.map((c) => ({
+        id: c.id,
+        label: c.jurisdiction ?? "Sub-return",
+        hint: `currently ${ENGAGEMENT_STATUS_LABELS[c.status]}`,
+      })),
+      confirmLabel: "Apply",
+      cancelLabel: "This return only",
     });
+
     updateEngagement.mutate({
       engagementId: eng.id,
-      data: { status, ...(ok ? { cascadeToSubReturns: true } : {}) },
+      data: { status, ...(picked && picked.length > 0 ? { cascadeToIds: picked } : {}) },
     });
   }
 
