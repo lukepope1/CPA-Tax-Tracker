@@ -187,6 +187,59 @@ router.get("/time-in-status", async (req, res) => {
   res.json(rows);
 });
 
+// The returns currently sitting in one status, for drilling into a row of the
+// Time in Status summary. "Days" is the length of the current stint: measured
+// from the most recent change into the status the return is in now, so a return
+// that bounced back into Review is timed from its latest visit, not its first.
+router.get("/in-status", async (req, res) => {
+  const status = String(req.query.status ?? "");
+  if (!status) return res.status(400).json({ error: "A status is required." });
+  const taxYear = req.query.taxYear ? Number(req.query.taxYear) : undefined;
+
+  const engagements = await prisma.engagement.findMany({
+    where: {
+      status,
+      deletedAt: null,
+      parentEngagementId: null,
+      client: { is: { deletedAt: null } },
+      ...(taxYear ? { taxYear } : {}),
+    },
+    include: {
+      client: { select: { id: true, name: true } },
+      assignedTo: { select: { name: true } },
+      statusChanges: { orderBy: { changedAt: "desc" }, select: { status: true, changedAt: true } },
+      dueDates: { where: { completed: false }, orderBy: { dueDate: "asc" }, select: { dueDate: true, type: true } },
+      openItems: { where: { receivedAt: null }, select: { id: true } },
+    },
+  });
+
+  const now = Date.now();
+  const rows = engagements.map((e) => {
+    const since = e.statusChanges.find((s) => s.status === e.status)?.changedAt ?? e.createdAt;
+    // Same extension rule as everywhere else when picking the "next" due date.
+    const next = e.dueDates.filter((dd) =>
+      e.extensionFiled ? dd.type !== "ORIGINAL_FILING" : dd.type !== "EXTENDED_FILING"
+    )[0];
+    return {
+      id: e.id,
+      clientId: e.client.id,
+      clientName: e.client.name,
+      formType: e.formType,
+      jurisdiction: e.jurisdiction,
+      description: e.description,
+      taxYear: e.taxYear,
+      assignedTo: e.assignedTo?.name ?? "",
+      since,
+      days: Math.max(0, (now - new Date(since).getTime()) / 86400000),
+      nextDueDate: next?.dueDate ?? null,
+      openItemCount: e.openItems.length,
+    };
+  });
+
+  rows.sort((a, b) => b.days - a.days);
+  res.json(rows);
+});
+
 // Capacity: open returns per staff member, bucketed by when they're due, with
 // an estimate of the hours still required. The estimate uses last year's actual
 // hours for the same return (falling back to the manually-entered prior-year

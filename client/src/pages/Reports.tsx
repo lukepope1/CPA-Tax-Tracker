@@ -1,10 +1,17 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { Loading, EmptyState } from "../components/ui";
-import { ENGAGEMENT_STATUS_LABELS, EngagementStatus, FORM_TYPE_LABELS, FormType } from "../lib/types";
+import {
+  ENGAGEMENT_STATUS_LABELS,
+  EngagementStatus,
+  FORM_TYPE_LABELS,
+  FormType,
+  engagementLabel,
+} from "../lib/types";
 
 type ReportKey = "staff" | "clients" | "aging" | "turnaround" | "status" | "capacity" | "profit";
 
@@ -23,6 +30,12 @@ interface CapacityRow {
   id: string; name: string;
   overdue: number; thisWeek: number; nextWeek: number; weeks2to4: number; later: number; noDate: number;
   returns: number; estHours: number; loggedHours: number; remainingHours: number;
+}
+interface InStatusRow {
+  id: string; clientId: string; clientName: string; formType: FormType;
+  jurisdiction: string | null; description: string | null; taxYear: number;
+  assignedTo: string; since: string; days: number;
+  nextDueDate: string | null; openItemCount: number;
 }
 interface ProfitRow {
   name: string; hours: number; stdValue: number; billed: number;
@@ -56,6 +69,8 @@ export default function Reports() {
   const [from, setFrom] = useState(yearStartISO());
   const [to, setTo] = useState(todayISO());
   const [taxYear, setTaxYear] = useState<string>("");
+  // Which Time in Status row is expanded to show the returns sitting in it.
+  const [openStatus, setOpenStatus] = useState<EngagementStatus | null>(null);
 
   const dateParams = { from, to };
   const usesTaxYear = tab === "status" || tab === "capacity";
@@ -96,6 +111,13 @@ export default function Reports() {
     queryKey: ["report-time-in-status", taxYear],
     queryFn: async () => (await api.get("/reports/time-in-status", { params: taxYearParams })).data,
     enabled: tab === "status",
+  });
+
+  const inStatus = useQuery<InStatusRow[]>({
+    queryKey: ["report-in-status", openStatus, taxYear],
+    queryFn: async () =>
+      (await api.get("/reports/in-status", { params: { status: openStatus, ...taxYearParams } })).data,
+    enabled: tab === "status" && openStatus !== null,
   });
 
   const capacity = useQuery<CapacityRow[]>({
@@ -232,7 +254,10 @@ export default function Reports() {
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
                 tab === t.key ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"
               }`}
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key);
+                setOpenStatus(null);
+              }}
             >
               {t.label}
             </button>
@@ -252,7 +277,10 @@ export default function Reports() {
             <select
               className="border border-gray-300 rounded px-2 py-1.5"
               value={taxYear}
-              onChange={(e) => setTaxYear(e.target.value)}
+              onChange={(e) => {
+                setTaxYear(e.target.value);
+                setOpenStatus(null);
+              }}
             >
               <option value="">All years</option>
               {taxYears.data?.map((y) => (
@@ -410,7 +438,7 @@ export default function Reports() {
           <div>
             <div className="px-4 py-2 border-b bg-gray-50 text-sm text-gray-600">
               Average days returns spend in each stage, across their full status history. The stage with the
-              highest average is your bottleneck.
+              highest average is your bottleneck — click a row to see the returns sitting there now.
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -424,20 +452,85 @@ export default function Reports() {
               </thead>
               <tbody>
                 {status.isLoading && <tr><td colSpan={5}><Loading /></td></tr>}
-                {status.data?.map((r, i) => (
-                  <tr key={r.status} className="border-b last:border-0 hover:bg-gray-50">
-                    <td className="py-2 px-4 font-medium text-gray-800">
-                      {ENGAGEMENT_STATUS_LABELS[r.status] ?? r.status}
-                      {i === 0 && r.avgDays > 0 && (
-                        <span className="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">Bottleneck</span>
+                {status.data?.map((r, i) => {
+                  const expandable = r.openNow > 0;
+                  const isOpen = openStatus === r.status;
+                  return (
+                    <Fragment key={r.status}>
+                      <tr
+                        className={`border-b last:border-0 ${expandable ? "cursor-pointer hover:bg-gray-50" : ""} ${
+                          isOpen ? "bg-brand-50/60" : ""
+                        }`}
+                        onClick={() => expandable && setOpenStatus(isOpen ? null : r.status)}
+                      >
+                        <td className="py-2 px-4 font-medium text-gray-800">
+                          <span className={`mr-1.5 inline-block w-3 text-gray-400 ${expandable ? "" : "opacity-0"}`}>
+                            {isOpen ? "▾" : "▸"}
+                          </span>
+                          {ENGAGEMENT_STATUS_LABELS[r.status] ?? r.status}
+                          {i === 0 && r.avgDays > 0 && (
+                            <span className="ml-2 rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">Bottleneck</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 text-right font-semibold">{r.avgDays.toFixed(1)}</td>
+                        <td className="py-2 px-4 text-right text-gray-500">{r.longestDays.toFixed(0)}</td>
+                        <td className="py-2 px-4 text-right text-gray-500">{r.stints}</td>
+                        <td className={`py-2 px-4 text-right ${expandable ? "font-medium text-brand-700 underline decoration-dotted" : "text-gray-400"}`}>
+                          {r.openNow}
+                        </td>
+                      </tr>
+
+                      {isOpen && (
+                        <tr className="border-b bg-gray-50/70">
+                          <td colSpan={5} className="px-4 py-3">
+                            {inStatus.isLoading ? (
+                              <Loading />
+                            ) : inStatus.data && inStatus.data.length > 0 ? (
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-gray-500 border-b">
+                                    <th className="py-1 pr-4">Client</th>
+                                    <th className="py-1 pr-4">Return</th>
+                                    <th className="py-1 pr-4">Assigned To</th>
+                                    <th className="py-1 pr-4">Next Due</th>
+                                    <th className="py-1 pr-4 text-right">Days Here</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {inStatus.data.map((d) => (
+                                    <tr key={d.id} className="border-b last:border-0">
+                                      <td className="py-1 pr-4">
+                                        <Link to={`/clients/${d.clientId}`} className="text-brand-600 hover:underline">
+                                          {d.clientName}
+                                        </Link>
+                                        {d.openItemCount > 0 && (
+                                          <span
+                                            className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700"
+                                            title="Outstanding open items"
+                                          >
+                                            {d.openItemCount} open
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-1 pr-4">{engagementLabel(d)}</td>
+                                      <td className="py-1 pr-4">{d.assignedTo || "—"}</td>
+                                      <td className="py-1 pr-4 whitespace-nowrap">
+                                        {d.nextDueDate ? fmtDate(d.nextDueDate) : "—"}
+                                      </td>
+                                      <td className="py-1 pr-4 text-right font-medium">{d.days.toFixed(0)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <p className="text-sm text-gray-500">No returns are sitting in this status right now.</p>
+                            )}
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="py-2 px-4 text-right font-semibold">{r.avgDays.toFixed(1)}</td>
-                    <td className="py-2 px-4 text-right text-gray-500">{r.longestDays.toFixed(0)}</td>
-                    <td className="py-2 px-4 text-right text-gray-500">{r.stints}</td>
-                    <td className={`py-2 px-4 text-right ${r.openNow > 0 ? "font-medium text-gray-800" : "text-gray-400"}`}>{r.openNow}</td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
                 {status.data?.length === 0 && (
                   <tr><td colSpan={5}><EmptyState title="No status history yet" hint="This fills in as returns move through their stages." /></td></tr>
                 )}
