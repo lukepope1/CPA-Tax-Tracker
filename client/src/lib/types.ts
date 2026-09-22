@@ -233,6 +233,7 @@ export interface Task {
   dueDate: string | null;
   completed: boolean;
   completedAt: string | null;
+  deletedAt?: string | null;
   assignedToId: string | null;
   assignedTo?: { id: string; name: string } | null;
   clientId: string | null;

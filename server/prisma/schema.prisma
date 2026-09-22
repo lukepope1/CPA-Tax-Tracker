@@ -205,6 +205,9 @@ model Task {
   dueDate     DateTime?
   completed   Boolean   @default(false)
   completedAt DateTime?
+  // Soft-delete: set when the ✕ is clicked. Restorable from the Trash page for
+  // 7 days, then purged, so a stray click is never permanent.
+  deletedAt   DateTime?
 
   assignedTo   User?   @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   assignedToId String?

@@ -33,11 +33,28 @@ const include = {
   engagement: { select: { id: true, formType: true, taxYear: true, jurisdiction: true, description: true } },
 };
 
-// Never show tasks hanging off a trashed client or a soft-deleted return.
+// Never show tasks hanging off a trashed client or a soft-deleted return, or
+// tasks that are themselves in the trash.
 const VISIBLE = {
+  deletedAt: null,
   OR: [{ clientId: null }, { client: { is: { deletedAt: null } } }],
   AND: [{ OR: [{ engagementId: null }, { engagement: { is: { deletedAt: null } } }] }],
 };
+
+// Deleted tasks are recoverable for a week, matching how clients (90 days) and
+// returns (30 days) behave — a short window, since tasks are throwaway by nature.
+const TRASH_RETENTION_DAYS = 7;
+
+function trashCutoff() {
+  const d = new Date();
+  d.setDate(d.getDate() - TRASH_RETENTION_DAYS);
+  return d;
+}
+
+// Best-effort housekeeping, run whenever the trash is read.
+async function purgeExpiredTasks() {
+  await prisma.task.deleteMany({ where: { deletedAt: { not: null, lt: trashCutoff() } } });
+}
 
 // Tasks, newest deadline first. Filters mirror the dashboard's controls:
 //   ?assignedToId=<id>|unassigned   ?clientId=  ?engagementId=
@@ -129,8 +146,36 @@ router.put("/:id", async (req, res) => {
   res.json(task);
 });
 
-router.delete("/:id", async (req, res) => {
+// Tasks currently in the trash, newest first. Reading the list is also what
+// triggers the purge of anything past the retention window.
+router.get("/trash", async (_req, res) => {
+  await purgeExpiredTasks();
+  const tasks = await prisma.task.findMany({
+    where: { deletedAt: { not: null } },
+    include,
+    orderBy: { deletedAt: "desc" },
+  });
+  res.json(tasks);
+});
+
+router.post("/:id/restore", async (req, res) => {
+  const task = await prisma.task.update({
+    where: { id: req.params.id },
+    data: { deletedAt: null },
+    include,
+  });
+  res.json(task);
+});
+
+// Permanently delete, skipping the retention window.
+router.delete("/:id/permanent", async (req, res) => {
   await prisma.task.delete({ where: { id: req.params.id } });
+  res.status(204).send();
+});
+
+// Move a task to the trash. Recoverable for 7 days.
+router.delete("/:id", async (req, res) => {
+  await prisma.task.update({ where: { id: req.params.id }, data: { deletedAt: new Date() } });
   res.status(204).send();
 });
 

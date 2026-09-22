@@ -15,6 +15,7 @@ import {
   DueDateType,
   FormType,
   engagementLabel,
+  Task,
   User,
 } from "../lib/types";
 
@@ -58,6 +59,11 @@ const CARD_TITLES: Record<CardKey, string> = {
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+// Whole days a task is past its due date.
+function daysPastDue(due: string) {
+  return Math.max(0, Math.floor((Date.now() - new Date(due).getTime()) / 86400000));
 }
 
 // Days since the oldest outstanding request on a return.
@@ -112,6 +118,15 @@ export default function Dashboard() {
   // list below it always agree.
   const drillItems = openCard === "overdue" ? overdue ?? [] : drill.data ?? [];
   const drillLoading = openCard === "overdue" ? overdue === undefined : drill.isLoading;
+
+  // Past-due tasks get a banner at the top — they are easy to lose track of
+  // otherwise, since the deadline cards above only count filing deadlines.
+  const { data: taskList } = useQuery<Task[]>({
+    // Keyed under "tasks" so TaskList's invalidation refreshes the banner too.
+    queryKey: ["tasks", "overdue-banner", userId],
+    queryFn: async () => (await api.get("/tasks", { params: { assignedToId: userId } })).data,
+  });
+  const overdueTasks = (taskList ?? []).filter((t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date());
 
   const isUnassigned = userId === "unassigned";
   const isSelf = userId === user?.id;
@@ -202,6 +217,36 @@ export default function Dashboard() {
           </select>
         </label>
       </div>
+
+      {overdueTasks.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-red-800">
+              ⚠ {overdueTasks.length} past-due task{overdueTasks.length === 1 ? "" : "s"}
+            </h2>
+            <span className="text-xs text-red-700">Tie off or reschedule these.</span>
+          </div>
+          <ul className="mt-2 space-y-1">
+            {overdueTasks.slice(0, 5).map((t) => (
+              <li key={t.id} className="flex flex-wrap items-baseline gap-2 text-sm text-red-900">
+                <span className="font-medium">{t.title}</span>
+                {t.client && (
+                  <Link to={`/clients/${t.client.id}`} className="text-xs text-red-700 underline hover:no-underline">
+                    {t.client.name}
+                  </Link>
+                )}
+                <span className="text-xs text-red-700">
+                  due {formatDate(t.dueDate!)} · {daysPastDue(t.dueDate!)} day
+                  {daysPastDue(t.dueDate!) === 1 ? "" : "s"} ago
+                </span>
+              </li>
+            ))}
+            {overdueTasks.length > 5 && (
+              <li className="text-xs text-red-700">and {overdueTasks.length - 5} more below.</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Task, User } from "../lib/types";
+import { Client, Task, User } from "../lib/types";
 
 // What this list is "about". The same three shapes drive both the query filter
 // and the fields stamped onto anything created here, so a task added under a
@@ -44,6 +44,16 @@ export default function TaskList({
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const [assignee, setAssignee] = useState(defaultAssigneeId);
+  // Only person-scoped lists offer a client picker — on a client or return page
+  // the client is already implied by where you are.
+  const picksClient = "assignedToId" in scope;
+  const [taskClientId, setTaskClientId] = useState("");
+
+  const { data: clients } = useQuery<Client[]>({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data,
+    enabled: picksClient,
+  });
 
   // Follow the default assignee when the caller's context changes (e.g. the
   // dashboard's "Viewing:" selector).
@@ -68,6 +78,8 @@ export default function TaskList({
     mutationFn: async () =>
       api.post("/tasks", {
         ...scope,
+        // Blank means a general task with no client — that stays possible.
+        ...(picksClient && taskClientId ? { clientId: taskClientId } : {}),
         title: title.trim(),
         // <input type="date"> yields YYYY-MM-DD; pin to UTC midnight so it shows
         // as the same calendar day everywhere.
@@ -77,6 +89,7 @@ export default function TaskList({
     onSuccess: () => {
       setTitle("");
       setDue("");
+      setTaskClientId("");
       if (compact) setAdding(false);
       refresh();
     },
@@ -113,6 +126,21 @@ export default function TaskList({
         onChange={(e) => setTitle(e.target.value)}
         autoFocus={compact}
       />
+      {picksClient && (
+        <select
+          className={`border border-gray-300 rounded px-2 py-1 max-w-[12rem] ${rowClass} ${
+            taskClientId ? "text-gray-700" : "text-gray-400"
+          }`}
+          value={taskClientId}
+          onChange={(e) => setTaskClientId(e.target.value)}
+          title="Tie this task to a client (optional)"
+        >
+          <option value="">No client — general</option>
+          {clients?.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      )}
       <input
         type="date"
         className={`border border-gray-300 rounded px-2 py-1 text-gray-600 ${rowClass}`}
@@ -203,7 +231,7 @@ export default function TaskList({
                 <button
                   onClick={() => remove.mutate(t.id)}
                   className="text-xs text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600"
-                  title="Delete task"
+                  title="Move to trash — recoverable for 7 days"
                 >
                   ✕
                 </button>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Client, Engagement, engagementLabel } from "../lib/types";
+import { Client, Engagement, Task, engagementLabel } from "../lib/types";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState } from "../components/ui";
@@ -93,6 +93,45 @@ export default function Trash() {
       tone: "danger",
     });
     if (ok) purgeReturn.mutate(e.id);
+  }
+
+  const { data: trashedTasks, isLoading: tasksLoading } = useQuery<Task[]>({
+    queryKey: ["tasks-trash"],
+    queryFn: async () => (await api.get("/tasks/trash")).data,
+  });
+
+  const restoreTask = useMutation({
+    mutationFn: async (taskId: string) => api.post(`/tasks/${taskId}/restore`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks-trash"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      toast("Task restored.");
+    },
+  });
+
+  const purgeTask = useMutation({
+    mutationFn: async (taskId: string) => api.delete(`/tasks/${taskId}/permanent`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks-trash"] });
+      toast("Task permanently deleted.");
+    },
+  });
+
+  async function handlePurgeTask(t: Task) {
+    const ok = await confirm({
+      title: "Permanently delete this task?",
+      message: `${t.title} — this cannot be undone.`,
+      confirmLabel: "Delete permanently",
+      tone: "danger",
+    });
+    if (ok) purgeTask.mutate(t.id);
+  }
+
+  function taskDaysLeft(deletedAt?: string | null) {
+    if (!deletedAt) return 7;
+    const elapsed = (Date.now() - new Date(deletedAt).getTime()) / 86400000;
+    return Math.max(0, Math.ceil(7 - elapsed));
   }
 
   function returnDaysLeft(deletedAt?: string | null) {
@@ -195,6 +234,59 @@ export default function Trash() {
               ))}
               {trashedReturns && trashedReturns.length === 0 && (
                 <tr><td colSpan={5}><EmptyState title="No deleted returns" hint="Deleted returns appear here for 30 days." /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800">Deleted Tasks</h2>
+        <p className="text-sm text-gray-500 mb-2">Deleted tasks are kept for 7 days, then permanently removed.</p>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="py-2 px-4">Task</th>
+                <th className="py-2 px-4">Client</th>
+                <th className="py-2 px-4">Due</th>
+                <th className="py-2 px-4">Deleted</th>
+                <th className="py-2 px-4">Days Left</th>
+                <th className="py-2 px-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasksLoading && (
+                <tr><td colSpan={6}><Loading /></td></tr>
+              )}
+              {trashedTasks?.map((t) => (
+                <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="py-2 px-4">
+                    {t.title}
+                    {t.completed && <span className="ml-2 text-xs text-gray-400">completed</span>}
+                  </td>
+                  <td className="py-2 px-4">
+                    {t.client ? (
+                      <Link to={`/clients/${t.client.id}`} className="text-brand-600 hover:underline">{t.client.name}</Link>
+                    ) : (
+                      <span className="text-gray-400">General</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 text-gray-600">{t.dueDate ? formatDate(t.dueDate) : "—"}</td>
+                  <td className="py-2 px-4 text-gray-600">{formatDate(t.deletedAt)}</td>
+                  <td className="py-2 px-4 text-gray-600">{taskDaysLeft(t.deletedAt)}</td>
+                  <td className="py-2 px-4 text-right whitespace-nowrap">
+                    <button className="text-brand-600 hover:underline mr-4" onClick={() => restoreTask.mutate(t.id)}>
+                      Restore
+                    </button>
+                    <button className="text-red-600 hover:underline" onClick={() => handlePurgeTask(t)}>
+                      Delete permanently
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {trashedTasks && trashedTasks.length === 0 && (
+                <tr><td colSpan={6}><EmptyState title="No deleted tasks" hint="Deleted tasks appear here for 7 days." /></td></tr>
               )}
             </tbody>
           </table>

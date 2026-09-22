@@ -58,6 +58,7 @@ router.get("/summary", async (req, res) => {
   // would make those numbers mean two things at once.
   const taskWhere: Record<string, unknown> = {
     completed: false,
+    deletedAt: null,
     OR: [{ clientId: null }, { client: { is: { deletedAt: null } } }],
     AND: [{ OR: [{ engagementId: null }, { engagement: { is: { deletedAt: null } } }] }],
   };
