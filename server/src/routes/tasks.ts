@@ -59,11 +59,21 @@ async function purgeExpiredTasks() {
 // Tasks, newest deadline first. Filters mirror the dashboard's controls:
 //   ?assignedToId=<id>|unassigned   ?clientId=  ?engagementId=
 //   ?includeCompleted=true          ?days=<n>   (due within the next n days)
+//   ?completedWithin=<n>            (only tasks checked off in the last n days)
 router.get("/", async (req, res) => {
-  const { assignedToId, clientId, engagementId, includeCompleted, days } = req.query;
+  const { assignedToId, clientId, engagementId, includeCompleted, days, completedWithin } = req.query;
 
   const where: Record<string, unknown> = { ...VISIBLE };
-  if (includeCompleted !== "true") where.completed = false;
+  if (completedWithin) {
+    // The dashboard's "Recently completed" list: what was checked off lately,
+    // so something closed by accident can be put back.
+    const since = new Date();
+    since.setDate(since.getDate() - Number(completedWithin));
+    where.completed = true;
+    where.completedAt = { not: null, gte: since };
+  } else if (includeCompleted !== "true") {
+    where.completed = false;
+  }
   if (assignedToId === "unassigned") where.assignedToId = null;
   else if (assignedToId) where.assignedToId = String(assignedToId);
   if (clientId) where.clientId = String(clientId);
@@ -78,6 +88,13 @@ router.get("/", async (req, res) => {
   }
 
   const tasks = await prisma.task.findMany({ where, include, orderBy: [{ completed: "asc" }, { dueDate: "asc" }] });
+
+  if (completedWithin) {
+    // Most recently checked off first — the one just closed by mistake is the
+    // one most likely being looked for.
+    tasks.sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0));
+    return res.json(tasks);
+  }
 
   // Prisma sorts nulls first on SQLite; undated tasks belong at the bottom.
   tasks.sort((a, b) => {

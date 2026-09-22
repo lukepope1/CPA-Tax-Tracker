@@ -75,6 +75,7 @@ function waitingDays(item: InboxItem) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { choose } = useDialog();
+  const queryClientHook = useQueryClient();
   const [viewUserId, setViewUserId] = useState<string>(user?.id ?? "");
   const userId = viewUserId || user?.id || "";
 
@@ -128,6 +129,23 @@ export default function Dashboard() {
   });
   const overdueTasks = (taskList ?? []).filter((t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date());
 
+  // Tasks checked off in the last week sit at the bottom of the dashboard, so
+  // one closed by accident can be put back without hunting for it.
+  const { data: recentlyCompletedData } = useQuery<Task[]>({
+    queryKey: ["tasks", "recently-completed", userId],
+    queryFn: async () =>
+      (await api.get("/tasks", { params: { assignedToId: userId, completedWithin: 7 } })).data,
+  });
+  const recentlyCompleted = recentlyCompletedData ?? [];
+
+  const restoreTask = useMutation({
+    mutationFn: async (taskId: string) => api.put(`/tasks/${taskId}`, { completed: false }),
+    onSuccess: () => {
+      queryClientHook.invalidateQueries({ queryKey: ["tasks"] });
+      queryClientHook.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+  });
+
   const isUnassigned = userId === "unassigned";
   const isSelf = userId === user?.id;
   const viewedName = isUnassigned ? "Unassigned pool" : users?.find((u) => u.id === userId)?.name ?? user?.name ?? "";
@@ -137,7 +155,6 @@ export default function Dashboard() {
   const inboxSort = useSort<InboxItem>(inbox ?? [], "nextDueDate");
   const displayed = manualOrder ? inbox ?? [] : inboxSort.sorted;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const queryClientHook = useQueryClient();
 
   const reorder = useMutation({
     mutationFn: async (ids: string[]) => api.post("/engagements/reorder", { ids }),
@@ -445,6 +462,42 @@ export default function Dashboard() {
           <p className="text-sm text-gray-500">Nothing due in the next 14 days.</p>
         )}
       </div>
+
+      {recentlyCompleted.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">
+              Recently completed
+              <span className="ml-2 font-normal text-gray-400">last 7 days</span>
+            </h2>
+            <span className="text-xs text-gray-400">Checked something off by mistake? Restore it here.</span>
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {recentlyCompleted.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 py-2">
+                <span className="flex-1 text-sm text-gray-400 line-through">
+                  {t.title}
+                  {t.client && (
+                    <Link to={`/clients/${t.client.id}`} className="ml-2 text-xs text-brand-600 no-underline hover:underline">
+                      {t.client.name}
+                    </Link>
+                  )}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {t.completedAt ? `completed ${formatDate(t.completedAt)}` : ""}
+                </span>
+                <button
+                  className="text-xs font-medium text-brand-600 hover:underline"
+                  onClick={() => restoreTask.mutate(t.id)}
+                  disabled={restoreTask.isPending}
+                >
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
