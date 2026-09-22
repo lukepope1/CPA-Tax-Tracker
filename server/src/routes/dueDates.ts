@@ -29,7 +29,10 @@ function engagementFilter(opts: { taxYear?: number; assignedToId?: string; statu
   }
   const is: Record<string, unknown> = { client: { is: clientIs }, deletedAt: null };
   if (opts.taxYear) is.taxYear = opts.taxYear;
-  if (opts.assignedToId) is.assignedToId = opts.assignedToId;
+  // The dashboard's "Unassigned pool" view passes the sentinel "unassigned",
+  // which means "no assignee" rather than a user id.
+  if (opts.assignedToId === "unassigned") is.assignedToId = null;
+  else if (opts.assignedToId) is.assignedToId = opts.assignedToId;
   // Hide returns marked Completed unless the user explicitly filters by a status.
   if (opts.status) is.status = opts.status;
   else is.status = { not: "COMPLETED" };

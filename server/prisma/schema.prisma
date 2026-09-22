@@ -16,91 +16,95 @@ datasource db {
 //   DueDate.type       -> "ORIGINAL_FILING" | "EXTENDED_FILING" | "ESTIMATE_Q1..Q4"
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("STAFF")
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String
+  role         String   @default("STAFF")
   billableRate Float?
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
 
-  timeEntries          TimeEntry[]
-  assignedEngagements  Engagement[]
-  statusChanges        StatusChange[]
+  timeEntries         TimeEntry[]
+  assignedEngagements Engagement[]
+  statusChanges       StatusChange[]
+  tasks               Task[]         @relation("TaskAssignee")
+  createdTasks        Task[]         @relation("TaskCreator")
 }
 
 model Client {
-  id                  String   @id @default(cuid())
-  name                String
+  id                 String    @id @default(cuid())
+  name               String
   // Client type: Corporation | Individual | Estate | Trust | Partnership | S Corporation | Non-Profit
-  clientType          String   @default("Corporation")
+  clientType         String    @default("Corporation")
   // For Individual clients:
-  firstName           String?
-  lastName            String?
-  spouseName          String?
-  clientCode          String?  @unique
-  contactName         String?
-  contactEmail        String?
-  contactPhone        String?
-  fiscalYearEndMonth  Int      @default(12) // 1-12
-  fiscalYearEndDay    Int      @default(31) // 1-31
-  notes               String?
-  deletedAt           DateTime?  // soft-delete: set when moved to trash; restorable for 90 days
-  createdAt           DateTime @default(now())
+  firstName          String?
+  lastName           String?
+  spouseName         String?
+  clientCode         String?   @unique
+  contactName        String?
+  contactEmail       String?
+  contactPhone       String?
+  fiscalYearEndMonth Int       @default(12) // 1-12
+  fiscalYearEndDay   Int       @default(31) // 1-31
+  notes              String?
+  deletedAt          DateTime? // soft-delete: set when moved to trash; restorable for 90 days
+  createdAt          DateTime  @default(now())
 
   // Optional parent client (simple one-level link for grouping related clients)
-  parentId            String?
-  parent              Client?  @relation("ClientHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children            Client[] @relation("ClientHierarchy")
+  parentId String?
+  parent   Client?  @relation("ClientHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Client[] @relation("ClientHierarchy")
 
   engagements Engagement[]
   timeEntries TimeEntry[]
   bills       Bill[]
+  tasks       Task[]
 }
 
 model Engagement {
-  id              String            @id @default(cuid())
-  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId        String
-  formType        String
-  jurisdiction    String            @default("Federal") // "Federal", a US state, or a city name
-  description     String?           // optional descriptor (e.g. "amended MO", "short-year", project notes)
-  taxYear         Int
-  fiscalYearEndMonth Int            @default(12)
-  fiscalYearEndDay   Int            @default(31)
-  status          String           @default("NOT_STARTED")
-  extensionFiled  Boolean          @default(false)
-  priority        Int?             // manual importance order for the dashboard inbox (lower = higher)
-  deletedAt       DateTime?        // soft-delete: restorable for 30 days via the Trash page
-  assignedTo      User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
-  assignedToId    String?
-  notes           String?
+  id                 String    @id @default(cuid())
+  client             Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId           String
+  formType           String
+  jurisdiction       String    @default("Federal") // "Federal", a US state, or a city name
+  description        String? // optional descriptor (e.g. "amended MO", "short-year", project notes)
+  taxYear            Int
+  fiscalYearEndMonth Int       @default(12)
+  fiscalYearEndDay   Int       @default(31)
+  status             String    @default("NOT_STARTED")
+  extensionFiled     Boolean   @default(false)
+  priority           Int? // manual importance order for the dashboard inbox (lower = higher)
+  deletedAt          DateTime? // soft-delete: restorable for 30 days via the Trash page
+  assignedTo         User?     @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId       String?
+  notes              String?
 
   // Billing & realization tracking
-  projectedFee    Float?            // projected fee from the engagement letter (EL)
-  priorYearFee    Float?            // prior-year fee, for comparison
-  priorYearHours  Float?            // prior-year hours, for comparison
-  priorBilled     Float?            // prior amount billed for this return
-  billed          Boolean           @default(false)
-  billedDate      DateTime?
-  billedAmount    Float?            // amount actually billed to the client
+  projectedFee   Float? // projected fee from the engagement letter (EL)
+  priorYearFee   Float? // prior-year fee, for comparison
+  priorYearHours Float? // prior-year hours, for comparison
+  priorBilled    Float? // prior amount billed for this return
+  billed         Boolean   @default(false)
+  billedDate     DateTime?
+  billedAmount   Float? // amount actually billed to the client
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Sub-task model: state/city returns are children of the federal return.
   parentEngagementId String?
-  parentEngagement   Engagement?    @relation("EngagementHierarchy", fields: [parentEngagementId], references: [id], onDelete: Cascade)
-  subEngagements     Engagement[]   @relation("EngagementHierarchy")
+  parentEngagement   Engagement?  @relation("EngagementHierarchy", fields: [parentEngagementId], references: [id], onDelete: Cascade)
+  subEngagements     Engagement[] @relation("EngagementHierarchy")
 
   // Links a return to the bill it was included on (null = unbilled).
-  bill          Bill?          @relation(fields: [billId], references: [id], onDelete: SetNull)
-  billId        String?
+  bill   Bill?   @relation(fields: [billId], references: [id], onDelete: SetNull)
+  billId String?
 
   dueDates      DueDate[]
   timeEntries   TimeEntry[]
   statusChanges StatusChange[]
   openItems     OpenItem[]
+  tasks         Task[]
 
   @@index([clientId])
   @@index([taxYear])
@@ -109,13 +113,13 @@ model Engagement {
 }
 
 model Bill {
-  id          String       @id @default(cuid())
-  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId    String
-  amount      Float
-  billedDate  DateTime     @default(now())
-  note        String?
-  createdAt   DateTime     @default(now())
+  id         String   @id @default(cuid())
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId   String
+  amount     Float
+  billedDate DateTime @default(now())
+  note       String?
+  createdAt  DateTime @default(now())
 
   engagements Engagement[]
   timeEntries TimeEntry[]
@@ -152,12 +156,12 @@ model OpenItem {
 }
 
 model DueDate {
-  id            String      @id @default(cuid())
-  engagement    Engagement  @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  id            String     @id @default(cuid())
+  engagement    Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
   engagementId  String
   type          String
   dueDate       DateTime
-  completed     Boolean     @default(false)
+  completed     Boolean    @default(false)
   completedDate DateTime?
   notes         String?
 
@@ -177,7 +181,7 @@ model TimeEntry {
   hours        Float
   description  String
   billable     Boolean     @default(true)
-  rate         Float?      // optional per-entry rate override; falls back to the user's billable rate
+  rate         Float? // optional per-entry rate override; falls back to the user's billable rate
   // Links general (no-engagement) time to the bill it was included on.
   bill         Bill?       @relation(fields: [billId], references: [id], onDelete: SetNull)
   billId       String?
@@ -187,4 +191,37 @@ model TimeEntry {
   @@index([clientId])
   @@index([date])
   @@index([billId])
+}
+
+// An ad-hoc to-do with an optional due date. Unlike a DueDate — which is
+// generated from the filing rules in lib/dueDates.ts and belongs to a return —
+// a task is typed in by hand ("call about the missing K-1", "file the 2848").
+// It can stand on its own, or be attached to a client and/or a specific return
+// so it shows up in context there.
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  notes       String?
+  dueDate     DateTime?
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  assignedTo   User?   @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId String?
+  createdBy    User?   @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+
+  // Optional context. Deleting the client or return takes its tasks with it.
+  client       Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String?
+  engagement   Engagement? @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagementId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assignedToId])
+  @@index([dueDate])
+  @@index([clientId])
+  @@index([engagementId])
 }

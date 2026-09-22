@@ -224,3 +224,26 @@ export interface TimeEntry {
   billable: boolean;
   rate?: number | null;
 }
+
+// An ad-hoc to-do. Separate from DueDate, which is generated from filing rules.
+export interface Task {
+  id: string;
+  title: string;
+  notes: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  assignedToId: string | null;
+  assignedTo?: { id: string; name: string } | null;
+  clientId: string | null;
+  client?: { id: string; name: string } | null;
+  engagementId: string | null;
+  engagement?: {
+    id: string;
+    formType: FormType;
+    taxYear: number;
+    jurisdiction?: string | null;
+    description?: string | null;
+  } | null;
+  createdAt: string;
+}

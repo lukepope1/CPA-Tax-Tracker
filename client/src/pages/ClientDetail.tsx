@@ -22,6 +22,7 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { formatPhone } from "../lib/format";
 import { Loading } from "../components/ui";
+import TaskList from "../components/TaskList";
 
 interface BillDetail {
   id: string;
@@ -638,6 +639,8 @@ export default function ClientDetail() {
         </form>
       )}
 
+      <TaskList scope={{ clientId: id! }} users={users ?? []} heading="Tasks" />
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-800">Engagements</h2>
         <button
@@ -946,6 +949,8 @@ export default function ClientDetail() {
               {renderDueDates(eng)}
 
               {renderOpenItems(eng)}
+
+              <TaskList scope={{ engagementId: eng.id }} users={users ?? []} compact defaultAssigneeId={eng.assignedToId ?? ""} />
 
               {childrenOf(eng.id).length > 0 && (
                 <div className="mt-3 border-t pt-3">

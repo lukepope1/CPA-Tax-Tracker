@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
-import { statusClasses, useSort } from "../components/ui";
+import { Loading, statusClasses, useSort } from "../components/ui";
+import TaskList from "../components/TaskList";
 import {
   DueDate,
   ENGAGEMENT_STATUS_LABELS,
@@ -23,6 +24,8 @@ interface Summary {
   dueThisMonth: number;
   engagementsByStatus: { status: EngagementStatus; count: number }[];
   hoursThisWeek: number;
+  tasksOpen: number;
+  tasksOverdue: number;
 }
 
 interface InboxItem {
@@ -43,6 +46,15 @@ interface InboxItem {
   oldestOpenItem: string | null;
   subReturns: { id: string; jurisdiction: string; status: EngagementStatus }[];
 }
+
+// The three due-date stat cards can each be expanded into the list behind them.
+type CardKey = "overdue" | "week" | "month";
+
+const CARD_TITLES: Record<CardKey, string> = {
+  overdue: "Overdue deadlines",
+  week: "Deadlines in the next 7 days",
+  month: "Deadlines in the next 30 days",
+};
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
@@ -84,6 +96,22 @@ export default function Dashboard() {
     queryKey: ["due-dates", "overdue", userId],
     queryFn: async () => (await api.get("/due-dates/overdue", { params: { assignedToId: userId } })).data,
   });
+
+  // Which stat card is expanded to show the deadlines behind its number.
+  const [openCard, setOpenCard] = useState<CardKey | null>(null);
+  const drillDays = openCard === "week" ? 7 : openCard === "month" ? 30 : null;
+
+  const drill = useQuery<DueDate[]>({
+    queryKey: ["due-dates", "drill", drillDays, userId],
+    queryFn: async () => (await api.get("/due-dates", { params: { days: drillDays, assignedToId: userId } })).data,
+    enabled: drillDays !== null,
+  });
+
+  // "Overdue" reuses the list already on the page; the other two are fetched on
+  // demand with the same window the summary count uses, so the number and the
+  // list below it always agree.
+  const drillItems = openCard === "overdue" ? overdue ?? [] : drill.data ?? [];
+  const drillLoading = openCard === "overdue" ? overdue === undefined : drill.isLoading;
 
   const isUnassigned = userId === "unassigned";
   const isSelf = userId === user?.id;
@@ -175,11 +203,58 @@ export default function Dashboard() {
         </label>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Overdue" value={summary?.overdueCount ?? "-"} accent="text-red-600" />
-        <StatCard label="Due in 7 days" value={summary?.dueThisWeek ?? "-"} accent="text-amber-600" />
-        <StatCard label="Due in 30 days" value={summary?.dueThisMonth ?? "-"} accent="text-brand-600" />
-        <StatCard label="Hours this week" value={summary != null ? summary.hoursThisWeek.toFixed(1) : "-"} accent="text-gray-800" />
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            label="Overdue"
+            value={summary?.overdueCount ?? "-"}
+            accent="text-red-600"
+            open={openCard === "overdue"}
+            onClick={() => setOpenCard(openCard === "overdue" ? null : "overdue")}
+          />
+          <StatCard
+            label="Due in 7 days"
+            value={summary?.dueThisWeek ?? "-"}
+            accent="text-amber-600"
+            open={openCard === "week"}
+            onClick={() => setOpenCard(openCard === "week" ? null : "week")}
+          />
+          <StatCard
+            label="Due in 30 days"
+            value={summary?.dueThisMonth ?? "-"}
+            accent="text-brand-600"
+            open={openCard === "month"}
+            onClick={() => setOpenCard(openCard === "month" ? null : "month")}
+          />
+          <StatCard label="Hours this week" value={summary != null ? summary.hoursThisWeek.toFixed(1) : "-"} accent="text-gray-800" />
+        </div>
+
+        {openCard && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-gray-700">{CARD_TITLES[openCard]}</h2>
+              <div className="flex items-center gap-3">
+                {!drillLoading && drillItems.length > 0 && (
+                  <span className="text-xs text-gray-500">
+                    {drillItems.length} deadline{drillItems.length === 1 ? "" : "s"} across{" "}
+                    {new Set(drillItems.map((d) => d.engagementId)).size} return
+                    {new Set(drillItems.map((d) => d.engagementId)).size === 1 ? "" : "s"}
+                  </span>
+                )}
+                <button className="text-xs text-brand-600 hover:underline" onClick={() => setOpenCard(null)}>
+                  Hide
+                </button>
+              </div>
+            </div>
+            {drillLoading ? (
+              <Loading />
+            ) : drillItems.length > 0 ? (
+              <DueDateTable items={drillItems} />
+            ) : (
+              <p className="text-sm text-gray-500">Nothing here right now.</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -288,6 +363,14 @@ export default function Dashboard() {
         )}
       </div>
 
+      <TaskList
+        scope={{ assignedToId: userId }}
+        users={users ?? []}
+        heading={`${isUnassigned ? "Unassigned" : isSelf ? "My" : `${viewedName}'s`} Tasks`}
+        showContext
+        defaultAssigneeId={userId}
+      />
+
       {summary && summary.engagementsByStatus.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Engagements by status</h2>
@@ -321,12 +404,47 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string | number; accent: string }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow transition-shadow p-4">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+function StatCard({
+  label,
+  value,
+  accent,
+  onClick,
+  open = false,
+}: {
+  label: string;
+  value: string | number;
+  accent: string;
+  onClick?: () => void;
+  open?: boolean;
+}) {
+  const body = (
+    <>
+      <p className="text-xs uppercase tracking-wide text-gray-500">
+        {label}
+        {onClick && <span className="ml-1.5 text-gray-400">{open ? "▾" : "▸"}</span>}
+      </p>
       <p className={`text-2xl font-semibold mt-1 ${accent}`}>{value}</p>
-    </div>
+    </>
+  );
+
+  const base = "bg-white rounded-xl border shadow-sm p-4 transition-shadow";
+
+  if (!onClick) {
+    return <div className={`${base} border-gray-100 hover:shadow`}>{body}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      title="Click to see the deadlines behind this number"
+      className={`${base} w-full text-left hover:shadow cursor-pointer ${
+        open ? "border-brand-300 ring-1 ring-brand-200" : "border-gray-100"
+      }`}
+    >
+      {body}
+    </button>
   );
 }
 

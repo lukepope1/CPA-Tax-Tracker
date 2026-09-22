@@ -19,10 +19,15 @@ router.get("/summary", async (req, res) => {
   weekAgo.setDate(weekAgo.getDate() - 7);
 
   // Keep counts consistent with the Due Dates page: ignore due dates for
-  // trashed clients, and ignore the original deadline once an extension is filed
-  // (and the extended deadline until one is). When a userId is given, scope to
-  // the returns assigned to that person.
-  const engagementIs: Record<string, unknown> = { client: { is: { deletedAt: null } }, deletedAt: null };
+  // trashed clients and for returns already marked Completed, and ignore the
+  // original deadline once an extension is filed (and the extended deadline
+  // until one is). When a userId is given, scope to the returns assigned to
+  // that person.
+  const engagementIs: Record<string, unknown> = {
+    client: { is: { deletedAt: null } },
+    deletedAt: null,
+    status: { not: "COMPLETED" },
+  };
   if (unassigned) engagementIs.assignedToId = null;
   else if (userId) engagementIs.assignedToId = userId;
   const activeFilters = {
@@ -48,12 +53,25 @@ router.get("/summary", async (req, res) => {
   if (unassigned) hoursWhere.id = "__none__"; // no personal hours for the pool
   else if (userId) hoursWhere.userId = userId;
 
-  const [overdueCount, dueThisWeek, dueThisMonth, engagementsByStatus, hoursThisWeek] = await Promise.all([
+  // Ad-hoc tasks are counted separately from filing deadlines — they are a
+  // different kind of thing, so folding them into the deadline counts above
+  // would make those numbers mean two things at once.
+  const taskWhere: Record<string, unknown> = {
+    completed: false,
+    OR: [{ clientId: null }, { client: { is: { deletedAt: null } } }],
+    AND: [{ OR: [{ engagementId: null }, { engagement: { is: { deletedAt: null } } }] }],
+  };
+  if (unassigned) taskWhere.assignedToId = null;
+  else if (userId) taskWhere.assignedToId = userId;
+
+  const [overdueCount, dueThisWeek, dueThisMonth, engagementsByStatus, hoursThisWeek, tasksOpen, tasksOverdue] = await Promise.all([
     prisma.dueDate.count({ where: { completed: false, dueDate: { lt: now }, ...activeFilters } }),
     prisma.dueDate.count({ where: { completed: false, dueDate: { gte: now, lte: in7 }, ...activeFilters } }),
     prisma.dueDate.count({ where: { completed: false, dueDate: { gte: now, lte: in30 }, ...activeFilters } }),
     prisma.engagement.groupBy({ by: ["status"], where: engagementWhere, _count: { _all: true } }),
     prisma.timeEntry.aggregate({ where: hoursWhere, _sum: { hours: true } }),
+    prisma.task.count({ where: taskWhere }),
+    prisma.task.count({ where: { ...taskWhere, dueDate: { not: null, lt: now } } }),
   ]);
 
   res.json({
@@ -62,6 +80,8 @@ router.get("/summary", async (req, res) => {
     dueThisMonth,
     engagementsByStatus: engagementsByStatus.map((s) => ({ status: s.status, count: s._count._all })),
     hoursThisWeek: hoursThisWeek._sum.hours ?? 0,
+    tasksOpen,
+    tasksOverdue,
   });
 });
 
