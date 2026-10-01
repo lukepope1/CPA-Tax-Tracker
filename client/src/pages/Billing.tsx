@@ -12,6 +12,9 @@ interface WipRow {
   clientId: string;
   clientName: string;
   clientType: string | null;
+  parentId: string;
+  parentName: string;
+  isChild: boolean;
   wipHours: number;
   wipValue: number;
   billedTotal: number;
@@ -39,6 +42,9 @@ interface BillRow {
   id: string;
   clientId: string;
   clientName: string;
+  parentId: string;
+  parentName: string;
+  isChild: boolean;
   amount: number;
   billedDate: string;
   note: string;
@@ -192,12 +198,51 @@ export default function Billing() {
     bill.mutate({ clientId: r.clientId, amount, clientName: r.clientName });
   }
 
-  const sort = useSort<WipRow>(data?.rows ?? [], "wipValue", "desc");
+  // Parent-group filter. Only groups that actually have children are worth
+  // offering — a standalone client is its own group of one, which would just
+  // make this a second copy of the client list.
+  const [parentId, setParentId] = useState("");
+
+  // Built from the client list rather than from whichever billing rows happen
+  // to be loaded — otherwise the filter would vanish whenever no current row
+  // belonged to a group, even though the groups still exist.
+  const { data: allClients } = useQuery<{ id: string; name: string; parent?: { id: string; name: string } | null }[]>({
+    queryKey: ["clients"],
+    queryFn: async () => (await api.get("/clients")).data,
+  });
+
+  const parentGroups = (() => {
+    const counts = new Map<string, { id: string; name: string; children: number }>();
+    for (const c of allClients ?? []) {
+      if (!c.parent) continue;
+      const g = counts.get(c.parent.id) ?? { id: c.parent.id, name: c.parent.name, children: 0 };
+      g.children++;
+      counts.set(c.parent.id, g);
+    }
+    return [...counts.values()].sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const wipRows = (data?.rows ?? []).filter((r) => !parentId || r.parentId === parentId);
+  const billRows = (history ?? []).filter((b) => !parentId || b.parentId === parentId);
+
+  // Totals follow the filter, so the cards always describe the rows on screen.
+  const wipTotals = wipRows.reduce(
+    (acc, r) => ({
+      wipHours: acc.wipHours + r.wipHours,
+      wipValue: acc.wipValue + r.wipValue,
+      billedTotal: acc.billedTotal + r.billedTotal,
+    }),
+    { wipHours: 0, wipValue: 0, billedTotal: 0 }
+  );
+
+  const sort = useSort<WipRow>(wipRows, "wipValue", "desc");
 
   function exportExcel() {
     if (!data) return;
-    const rows = data.rows.map((r) => ({
+    // Export what's on screen, so a filtered view and its spreadsheet agree.
+    const rows = wipRows.map((r) => ({
       Client: r.clientName,
+      "Parent Group": r.parentName,
       Type: r.clientType ?? "",
       "Open Returns": r.openEngagements,
       "Unbilled Hours": Number(r.wipHours.toFixed(1)),
@@ -206,16 +251,18 @@ export default function Billing() {
     }));
     rows.push({
       Client: "TOTAL",
+      "Parent Group": "",
       Type: "",
-      "Open Returns": data.rows.reduce((s, r) => s + r.openEngagements, 0),
-      "Unbilled Hours": Number(data.totals.wipHours.toFixed(1)),
-      "Outstanding WIP": Number(data.totals.wipValue.toFixed(2)),
-      "Billed to Date": Number(data.totals.billedTotal.toFixed(2)),
+      "Open Returns": wipRows.reduce((s, r) => s + r.openEngagements, 0),
+      "Unbilled Hours": Number(wipTotals.wipHours.toFixed(1)),
+      "Outstanding WIP": Number(wipTotals.wipValue.toFixed(2)),
+      "Billed to Date": Number(wipTotals.billedTotal.toFixed(2)),
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "WIP");
-    XLSX.writeFile(wb, `billing-wip-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    const suffix = parentId ? `-${(parentGroups.find((g) => g.id === parentId)?.name ?? "group").replace(/[^a-z0-9]+/gi, "-")}` : "";
+    XLSX.writeFile(wb, `billing-wip${suffix}-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast("Exported billing-wip.xlsx");
   }
 
@@ -230,7 +277,24 @@ export default function Billing() {
               : "Billing history — every recorded bill. Edit an amount or reverse a bill back to WIP."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {parentGroups.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              Parent group:
+              <select
+                className="border border-gray-300 rounded px-2 py-1.5 bg-white"
+                value={parentId}
+                onChange={(e) => setParentId(e.target.value)}
+              >
+                <option value="">All clients</option>
+                {parentGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} (+{g.children})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="inline-flex rounded-lg border border-gray-300 bg-white p-0.5">
             <button
               className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${view === "outstanding" ? "bg-brand-600 text-white" : "text-gray-600 hover:bg-gray-100"}`}
@@ -261,23 +325,23 @@ export default function Billing() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Total Outstanding WIP</div>
-            <div className="text-2xl font-bold text-brand-600">{currency(data.totals.wipValue)}</div>
+            <div className="text-2xl font-bold text-brand-600">{currency(wipTotals.wipValue)}</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Unbilled Hours</div>
-            <div className="text-2xl font-bold text-gray-800">{data.totals.wipHours.toFixed(1)}</div>
+            <div className="text-2xl font-bold text-gray-800">{wipTotals.wipHours.toFixed(1)}</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="text-xs font-medium text-gray-500 uppercase">Billed to Date</div>
-            <div className="text-2xl font-bold text-gray-800">{currency(data.totals.billedTotal)}</div>
+            <div className="text-2xl font-bold text-gray-800">{currency(wipTotals.billedTotal)}</div>
           </div>
         </div>
       )}
 
       {view === "billed" && history && (() => {
-        const totalBilled = history.reduce((s, b) => s + b.amount, 0);
-        const totalHours = history.reduce((s, b) => s + b.hours, 0);
-        const totalStd = history.reduce((s, b) => s + b.stdValue, 0);
+        const totalBilled = billRows.reduce((s, b) => s + b.amount, 0);
+        const totalHours = billRows.reduce((s, b) => s + b.hours, 0);
+        const totalStd = billRows.reduce((s, b) => s + b.stdValue, 0);
         const totalRealization = totalStd > 0 ? totalBilled / totalStd : null;
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -323,6 +387,7 @@ export default function Billing() {
                   <Link to={`/clients/${r.clientId}`} className="text-brand-600 hover:underline font-medium">
                     {r.clientName}
                   </Link>
+                  {r.isChild && <div className="text-xs text-gray-400">under {r.parentName}</div>}
                 </td>
                 <td className="py-2 px-4 text-gray-600">{r.clientType ?? "-"}</td>
                 <td className="py-2 px-4 text-right text-gray-600">{r.openEngagements}</td>
@@ -364,9 +429,9 @@ export default function Billing() {
             <tfoot>
               <tr className="border-t bg-gray-50 font-semibold text-gray-800">
                 <td className="py-2 px-4" colSpan={3}>Total</td>
-                <td className="py-2 px-4 text-right">{data.totals.wipHours.toFixed(1)}</td>
-                <td className="py-2 px-4 text-right">{currency(data.totals.wipValue)}</td>
-                <td className="py-2 px-4 text-right">{currency(data.totals.billedTotal)}</td>
+                <td className="py-2 px-4 text-right">{wipTotals.wipHours.toFixed(1)}</td>
+                <td className="py-2 px-4 text-right">{currency(wipTotals.wipValue)}</td>
+                <td className="py-2 px-4 text-right">{currency(wipTotals.billedTotal)}</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -394,11 +459,12 @@ export default function Billing() {
               {historyLoading && (
                 <tr><td colSpan={8}><Loading /></td></tr>
               )}
-              {history?.map((b) => (
+              {billRows.map((b) => (
                 <tr key={b.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="py-2 px-4 whitespace-nowrap">{formatDate(b.billedDate)}</td>
                   <td className="py-2 px-4">
                     <Link to={`/clients/${b.clientId}`} className="text-brand-600 hover:underline font-medium">{b.clientName}</Link>
+                    {b.isChild && <div className="text-xs text-gray-400">under {b.parentName}</div>}
                   </td>
                   <td className="py-2 px-4 text-right font-medium text-gray-800">{currency(b.amount)}</td>
                   <td className="py-2 px-4 text-right text-gray-600">{b.hours.toFixed(1)}</td>
@@ -413,7 +479,7 @@ export default function Billing() {
                   </td>
                 </tr>
               ))}
-              {history && history.length === 0 && (
+              {history && billRows.length === 0 && (
                 <tr><td colSpan={8}><EmptyState title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
               )}
             </tbody>

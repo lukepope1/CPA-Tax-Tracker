@@ -97,7 +97,7 @@ router.post("/bill-engagement", async (req, res) => {
 router.get("/history", async (_req, res) => {
   const bills = await prisma.bill.findMany({
     include: {
-      client: { select: { name: true } },
+      client: { select: { name: true, parent: { select: { id: true, name: true } } } },
       engagements: {
         select: { timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } } },
       },
@@ -115,6 +115,9 @@ router.get("/history", async (_req, res) => {
         id: b.id,
         clientId: b.clientId,
         clientName: b.client.name,
+        parentId: b.client.parent?.id ?? b.clientId,
+        parentName: b.client.parent?.name ?? b.client.name,
+        isChild: b.client.parent != null,
         amount: b.amount,
         billedDate: b.billedDate,
         note: b.note ?? "",
@@ -418,6 +421,8 @@ router.get("/wip", async (_req, res) => {
       id: true,
       name: true,
       clientType: true,
+      // Parent group, for rolling related clients up on the Billing page.
+      parent: { select: { id: true, name: true } },
       engagements: {
         where: { deletedAt: null },
         select: {
@@ -474,6 +479,11 @@ router.get("/wip", async (_req, res) => {
         clientId: c.id,
         clientName: c.name,
         clientType: c.clientType,
+        // A client with no parent is its own group, so every row belongs to
+        // exactly one group and nothing falls through the filter.
+        parentId: c.parent?.id ?? c.id,
+        parentName: c.parent?.name ?? c.name,
+        isChild: c.parent != null,
         wipHours,
         wipValue,
         billedTotal,
