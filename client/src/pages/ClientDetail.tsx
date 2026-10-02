@@ -23,7 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { formatPhone } from "../lib/format";
 import { Loading } from "../components/ui";
 import TaskList from "../components/TaskList";
-import ClientNotes from "../components/ClientNotes";
+import Notes from "../components/Notes";
 
 interface BillDetail {
   id: string;
@@ -636,7 +636,7 @@ export default function ClientDetail() {
         </form>
       )}
 
-      <ClientNotes clientId={id!} />
+      <Notes scope={{ clientId: id! }} />
 
       <TaskList scope={{ clientId: id! }} users={users ?? []} heading="Tasks" />
 
@@ -792,19 +792,6 @@ export default function ClientDetail() {
                 </div>
               </div>
 
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
-                <textarea
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                  rows={2}
-                  placeholder="e.g. waiting on K-1 from XYZ Partnership"
-                  defaultValue={eng.notes ?? ""}
-                  onBlur={(e) => {
-                    const v = e.target.value;
-                    if (v !== (eng.notes ?? "")) updateEngagement.mutate({ engagementId: eng.id, data: { notes: v } });
-                  }}
-                />
-              </div>
 
               {(() => {
                 const { hours, value } = loggedStats(eng);
@@ -948,6 +935,8 @@ export default function ClientDetail() {
               {renderDueDates(eng)}
 
               {renderOpenItems(eng)}
+
+              <Notes scope={{ engagementId: eng.id }} compact />
 
               <TaskList scope={{ engagementId: eng.id }} users={users ?? []} compact defaultAssigneeId={eng.assignedToId ?? ""} />
 

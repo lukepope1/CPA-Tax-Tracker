@@ -107,6 +107,7 @@ model Engagement {
   statusChanges StatusChange[]
   openItems     OpenItem[]
   tasks         Task[]
+  clientNotes   ClientNote[]
 
   @@index([clientId])
   @@index([taxYear])
@@ -236,15 +237,22 @@ model Task {
 // `prisma db push` can never drop it, and the first time a client's notes are
 // read its contents are copied in here as the earliest note.
 model ClientNote {
-  id          String   @id @default(cuid())
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId    String
+  id           String      @id @default(cuid())
+  client       Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String
+  // Set when the note belongs to a specific return rather than to the client
+  // as a whole. The client's own list shows only the notes where this is null.
+  engagement   Engagement? @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  engagementId String?
   // HTML from the rich-text editor.
-  body        String
-  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  body         String
+  createdBy    User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+  // Soft-delete: recoverable from the Trash page for 7 days, then purged.
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([clientId])
+  @@index([engagementId])
 }

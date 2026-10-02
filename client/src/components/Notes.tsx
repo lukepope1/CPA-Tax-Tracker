@@ -1,19 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
 import { Loading } from "../components/ui";
 import RichTextEditor from "./RichTextEditor";
+import { FormType } from "../lib/types";
 
-export interface ClientNote {
+export interface Note {
   id: string;
   body: string;
+  clientId: string;
+  engagementId: string | null;
   createdById: string | null;
   createdBy?: { id: string; name: string } | null;
+  client?: { id: string; name: string } | null;
+  engagement?: {
+    id: string;
+    formType: FormType;
+    taxYear: number;
+    jurisdiction?: string | null;
+    description?: string | null;
+  } | null;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** Whether this list belongs to a client as a whole or to one return. */
+export type NoteScope = { clientId: string } | { engagementId: string };
 
 function formatWhen(d: string) {
   return new Date(d).toLocaleString(undefined, {
@@ -33,35 +48,97 @@ function textLength(html: string) {
 
 const LONG_NOTE = 400;
 
-/** Dated rich-text notes on a client, newest first. The whole section collapses,
- *  and any individual long note collapses to a preview. */
-export default function ClientNotes({ clientId }: { clientId: string }) {
+/**
+ * An unsaved note survives navigating away: the draft is mirrored into
+ * localStorage under a key for this exact list, and restored when you come
+ * back. It is cleared only when the note is saved or the draft is explicitly
+ * discarded, so a misclick on the nav bar never costs you what you typed.
+ */
+function draftKey(scope: NoteScope) {
+  return "clientId" in scope ? `note-draft:client:${scope.clientId}` : `note-draft:engagement:${scope.engagementId}`;
+}
+
+function readDraft(scope: NoteScope): string {
+  try {
+    return localStorage.getItem(draftKey(scope)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeDraft(scope: NoteScope, html: string) {
+  try {
+    if (textLength(html) === 0) localStorage.removeItem(draftKey(scope));
+    else localStorage.setItem(draftKey(scope), html);
+  } catch {
+    /* private mode / storage disabled — drafts just won't persist */
+  }
+}
+
+function clearDraft(scope: NoteScope) {
+  try {
+    localStorage.removeItem(draftKey(scope));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Dated rich-text notes, newest first. The section collapses, long notes
+ *  collapse to a preview, and deletes go to the trash for 7 days. */
+export default function Notes({
+  scope,
+  heading = "Notes",
+  compact = false,
+}: {
+  scope: NoteScope;
+  heading?: string;
+  /** Tighter styling, for nesting inside a return card. */
+  compact?: boolean;
+}) {
   const queryClient = useQueryClient();
   const { confirm } = useDialog();
   const { toast } = useToast();
 
-  const [open, setOpen] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState("");
+  const scopeId = "clientId" in scope ? scope.clientId : scope.engagementId;
+
+  const [open, setOpen] = useState(!compact);
+  const [draft, setDraft] = useState(() => readDraft(scope));
+  const [adding, setAdding] = useState(() => textLength(readDraft(scope)) > 0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const key = ["client-notes", clientId];
+  // Moving between clients/returns re-points this list; pick up that record's
+  // own draft rather than carrying the previous one across.
+  useEffect(() => {
+    const saved = readDraft(scope);
+    setDraft(saved);
+    if (textLength(saved) > 0) {
+      setAdding(true);
+      setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeId]);
 
-  const { data: notes, isLoading } = useQuery<ClientNote[]>({
+  const key = ["notes", scopeId];
+
+  const { data: notes, isLoading } = useQuery<Note[]>({
     queryKey: key,
-    queryFn: async () => (await api.get("/client-notes", { params: { clientId } })).data,
-    enabled: !!clientId,
+    queryFn: async () => (await api.get("/client-notes", { params: scope })).data,
+    enabled: !!scopeId,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: key });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: key });
+    queryClient.invalidateQueries({ queryKey: ["notes-trash"] });
+  };
 
   const addNote = useMutation({
-    mutationFn: async (body: string) => (await api.post("/client-notes", { clientId, body })).data,
+    mutationFn: async (body: string) => (await api.post("/client-notes", { ...scope, body })).data,
     onSuccess: () => {
       invalidate();
       setDraft("");
+      clearDraft(scope);
       setAdding(false);
       toast("Note added.");
     },
@@ -83,25 +160,50 @@ export default function ClientNotes({ clientId }: { clientId: string }) {
     mutationFn: async (id: string) => api.delete(`/client-notes/${id}`),
     onSuccess: () => {
       invalidate();
-      toast("Note deleted.");
+      toast("Note moved to trash — restorable for 7 days.");
     },
   });
 
-  async function handleDelete(n: ClientNote) {
+  async function handleDelete(n: Note) {
     const ok = await confirm({
       title: "Delete this note?",
-      message: "This cannot be undone.",
+      message: "It moves to the Trash page and can be restored for 7 days.",
       confirmLabel: "Delete",
       tone: "danger",
     });
     if (ok) deleteNote.mutate(n.id);
   }
 
+  function onDraftChange(html: string) {
+    setDraft(html);
+    writeDraft(scope, html);
+  }
+
+  async function discardDraft() {
+    if (textLength(draft) > 0) {
+      const ok = await confirm({
+        title: "Discard this draft?",
+        message: "What you've typed here will be lost.",
+        confirmLabel: "Discard",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
+    setDraft("");
+    clearDraft(scope);
+    setAdding(false);
+  }
+
   const count = notes?.length ?? 0;
+  const hasDraft = textLength(draft) > 0;
+
+  const headingClass = compact ? "text-xs font-medium text-gray-500" : "text-lg font-semibold text-gray-800";
+  const wrapper = compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-100 shadow-sm";
+  const inner = compact ? "" : "border-t border-gray-100 px-4 py-3 space-y-3";
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+    <div className={wrapper}>
+      <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? "mb-1" : "px-4 py-3"}`}>
         <button
           type="button"
           className="flex items-center gap-2 text-left"
@@ -109,43 +211,50 @@ export default function ClientNotes({ clientId }: { clientId: string }) {
           aria-expanded={open}
         >
           <span className="w-3 text-gray-400">{open ? "▾" : "▸"}</span>
-          <h2 className="text-lg font-semibold text-gray-800">Notes</h2>
-          <span className="text-sm text-gray-400">
+          <span className={headingClass}>{heading}</span>
+          <span className={`${compact ? "text-xs" : "text-sm"} text-gray-400`}>
             {count === 0 ? "none yet" : `${count} note${count === 1 ? "" : "s"}`}
+            {hasDraft && <span className="ml-1 text-amber-600">· draft saved</span>}
           </span>
         </button>
         {open && !adding && (
           <button
-            className="bg-brand-600 text-white text-sm font-medium rounded px-3 py-1.5 hover:bg-brand-700"
+            className={
+              compact
+                ? "text-xs text-brand-600 hover:underline"
+                : "bg-brand-600 text-white text-sm font-medium rounded px-3 py-1.5 hover:bg-brand-700"
+            }
             onClick={() => setAdding(true)}
           >
-            Add Note
+            {compact ? "+ Add note" : "Add Note"}
           </button>
         )}
       </div>
 
       {open && (
-        <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+        <div className={inner || "space-y-2"}>
           {adding && (
-            <div>
-              <RichTextEditor value={draft} onChange={setDraft} placeholder="Write a note…" minHeight={120} />
+            <div className={compact ? "mb-2" : ""}>
+              <RichTextEditor
+                value={draft}
+                onChange={onDraftChange}
+                placeholder="Write a note…"
+                minHeight={compact ? 90 : 120}
+              />
               <div className="mt-2 flex items-center gap-2">
                 <button
                   className="bg-brand-600 text-white text-sm font-medium rounded px-3 py-1.5 hover:bg-brand-700 disabled:opacity-40"
-                  disabled={textLength(draft) === 0 || addNote.isPending}
+                  disabled={!hasDraft || addNote.isPending}
                   onClick={() => addNote.mutate(draft)}
                 >
                   Save note
                 </button>
-                <button
-                  className="text-sm text-gray-500 hover:underline"
-                  onClick={() => {
-                    setAdding(false);
-                    setDraft("");
-                  }}
-                >
-                  Cancel
+                <button className="text-sm text-gray-500 hover:underline" onClick={discardDraft}>
+                  {hasDraft ? "Discard" : "Cancel"}
                 </button>
+                {hasDraft && (
+                  <span className="text-xs text-gray-400">Unsaved — kept if you navigate away.</span>
+                )}
               </div>
             </div>
           )}
@@ -153,7 +262,9 @@ export default function ClientNotes({ clientId }: { clientId: string }) {
           {isLoading && <Loading />}
 
           {!isLoading && count === 0 && !adding && (
-            <p className="text-sm text-gray-500">No notes yet — add the first one.</p>
+            <p className={`${compact ? "text-xs" : "text-sm"} text-gray-400`}>
+              {compact ? "No notes on this return." : "No notes yet — add the first one."}
+            </p>
           )}
 
           {notes?.map((n) => {
@@ -187,7 +298,7 @@ export default function ClientNotes({ clientId }: { clientId: string }) {
 
                 {isEditing ? (
                   <div>
-                    <RichTextEditor value={editBody} onChange={setEditBody} minHeight={120} />
+                    <RichTextEditor value={editBody} onChange={setEditBody} minHeight={compact ? 90 : 120} />
                     <div className="mt-2 flex items-center gap-2">
                       <button
                         className="bg-brand-600 text-white text-sm font-medium rounded px-3 py-1.5 hover:bg-brand-700 disabled:opacity-40"

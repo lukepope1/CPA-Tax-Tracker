@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Client, Engagement, Task, engagementLabel } from "../lib/types";
+import { Note } from "../components/Notes";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState } from "../components/ui";
@@ -126,6 +127,44 @@ export default function Trash() {
       tone: "danger",
     });
     if (ok) purgeTask.mutate(t.id);
+  }
+
+  const { data: trashedNotes, isLoading: notesLoading } = useQuery<Note[]>({
+    queryKey: ["notes-trash"],
+    queryFn: async () => (await api.get("/client-notes/trash")).data,
+  });
+
+  const restoreNote = useMutation({
+    mutationFn: async (noteId: string) => api.post(`/client-notes/${noteId}/restore`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes-trash"] });
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      toast("Note restored.");
+    },
+  });
+
+  const purgeNote = useMutation({
+    mutationFn: async (noteId: string) => api.delete(`/client-notes/${noteId}/permanent`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes-trash"] });
+      toast("Note permanently deleted.");
+    },
+  });
+
+  async function handlePurgeNote(n: Note) {
+    const ok = await confirm({
+      title: "Permanently delete this note?",
+      message: "This cannot be undone.",
+      confirmLabel: "Delete permanently",
+      tone: "danger",
+    });
+    if (ok) purgeNote.mutate(n.id);
+  }
+
+  // Plain-text preview of a rich-text note body, for the trash table.
+  function notePreview(html: string) {
+    const text = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > 80 ? `${text.slice(0, 80)}…` : text || "(empty)";
   }
 
   function taskDaysLeft(deletedAt?: string | null) {
@@ -287,6 +326,58 @@ export default function Trash() {
               ))}
               {trashedTasks && trashedTasks.length === 0 && (
                 <tr><td colSpan={6}><EmptyState title="No deleted tasks" hint="Deleted tasks appear here for 7 days." /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800">Deleted Notes</h2>
+        <p className="text-sm text-gray-500 mb-2">Deleted notes are kept for 7 days, then permanently removed.</p>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <th className="py-2 px-4">Note</th>
+                <th className="py-2 px-4">Client</th>
+                <th className="py-2 px-4">Return</th>
+                <th className="py-2 px-4">Deleted</th>
+                <th className="py-2 px-4">Days Left</th>
+                <th className="py-2 px-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {notesLoading && (
+                <tr><td colSpan={6}><Loading /></td></tr>
+              )}
+              {trashedNotes?.map((n) => (
+                <tr key={n.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="py-2 px-4 text-gray-700">{notePreview(n.body)}</td>
+                  <td className="py-2 px-4">
+                    {n.client ? (
+                      <Link to={`/clients/${n.client.id}`} className="text-brand-600 hover:underline">{n.client.name}</Link>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 text-gray-600">
+                    {n.engagement ? engagementLabel(n.engagement) : <span className="text-gray-400">General</span>}
+                  </td>
+                  <td className="py-2 px-4 text-gray-600">{formatDate(n.deletedAt)}</td>
+                  <td className="py-2 px-4 text-gray-600">{taskDaysLeft(n.deletedAt)}</td>
+                  <td className="py-2 px-4 text-right whitespace-nowrap">
+                    <button className="text-brand-600 hover:underline mr-4" onClick={() => restoreNote.mutate(n.id)}>
+                      Restore
+                    </button>
+                    <button className="text-red-600 hover:underline" onClick={() => handlePurgeNote(n)}>
+                      Delete permanently
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {trashedNotes && trashedNotes.length === 0 && (
+                <tr><td colSpan={6}><EmptyState title="No deleted notes" hint="Deleted notes appear here for 7 days." /></td></tr>
               )}
             </tbody>
           </table>
