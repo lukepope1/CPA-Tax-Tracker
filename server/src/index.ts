@@ -12,6 +12,7 @@ import exportRouter from "./routes/export";
 import reportsRouter from "./routes/reports";
 import openItemsRouter from "./routes/openItems";
 import tasksRouter from "./routes/tasks";
+import clientNotesRouter from "./routes/clientNotes";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -38,6 +39,7 @@ app.use("/api/export", exportRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/open-items", openItemsRouter);
 app.use("/api/tasks", tasksRouter);
+app.use("/api/client-notes", clientNotesRouter);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

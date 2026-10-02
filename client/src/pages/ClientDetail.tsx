@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { formatPhone } from "../lib/format";
 import { Loading } from "../components/ui";
 import TaskList from "../components/TaskList";
+import ClientNotes from "../components/ClientNotes";
 
 interface BillDetail {
   id: string;
@@ -624,10 +625,6 @@ export default function ClientDetail() {
               <input type="number" min={1} max={31} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={edit.fiscalYearEndDay ?? 31} onChange={(e) => setEdit({ ...edit, fiscalYearEndDay: Number(e.target.value) })} />
             </div>
           </div>
-          <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea className="w-full border border-gray-300 rounded px-3 py-2 text-sm" rows={2} value={edit.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
-          </div>
           <div className="md:col-span-3 flex gap-2">
             <button type="submit" disabled={updateClient.isPending} className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50">
               {updateClient.isPending ? "Saving…" : "Save Changes"}
@@ -638,6 +635,8 @@ export default function ClientDetail() {
           </div>
         </form>
       )}
+
+      <ClientNotes clientId={id!} />
 
       <TaskList scope={{ clientId: id! }} users={users ?? []} heading="Tasks" />
 

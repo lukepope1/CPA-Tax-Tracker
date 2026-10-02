@@ -73,3 +73,48 @@ td, .tabular {
 .overflow-y-auto::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Rich-text editor and rendered note bodies. Tailwind's preflight strips list
+   styling, so lists have to be put back explicitly here. */
+.rte:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.rte ul,
+.note-body ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.rte ul ul,
+.note-body ul ul {
+  list-style: circle;
+}
+.rte ul ul ul,
+.note-body ul ul ul {
+  list-style: square;
+}
+.rte ol,
+.note-body ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.rte ol ol,
+.note-body ol ol {
+  list-style: lower-alpha;
+}
+.rte ol ol ol,
+.note-body ol ol ol {
+  list-style: lower-roman;
+}
+.rte a,
+.note-body a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+.note-body p {
+  margin: 0 0 0.5rem;
+}
+.note-body p:last-child {
+  margin-bottom: 0;
+}

@@ -29,6 +29,7 @@ model User {
   statusChanges       StatusChange[]
   tasks               Task[]         @relation("TaskAssignee")
   createdTasks        Task[]         @relation("TaskCreator")
+  clientNotes         ClientNote[]
 }
 
 model Client {
@@ -59,6 +60,7 @@ model Client {
   timeEntries TimeEntry[]
   bills       Bill[]
   tasks       Task[]
+  clientNotes ClientNote[]
 }
 
 model Engagement {
@@ -227,4 +229,22 @@ model Task {
   @@index([dueDate])
   @@index([clientId])
   @@index([engagementId])
+}
+
+// A dated, rich-text note on a client. Replaces the single free-text
+// Client.notes field in the UI — that column is deliberately left in place so a
+// `prisma db push` can never drop it, and the first time a client's notes are
+// read its contents are copied in here as the earliest note.
+model ClientNote {
+  id          String   @id @default(cuid())
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String
+  // HTML from the rich-text editor.
+  body        String
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
 }
