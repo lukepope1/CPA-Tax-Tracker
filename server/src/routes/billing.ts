@@ -52,14 +52,21 @@ router.post("/bill", async (req, res) => {
   const bill = await prisma.bill.create({ data: { clientId, amount, note } });
   const alloc = distribute(engagements.map((e) => ({ id: e.id, wip: valueOf(e.timeEntries) })), amount);
 
-  await prisma.$transaction(
-    engagements.map((e) =>
+  await prisma.$transaction([
+    ...engagements.map((e) =>
       prisma.engagement.update({
         where: { id: e.id },
         data: { billed: true, billedDate: bill.billedDate, billedAmount: alloc.get(e.id) ?? 0, billId: bill.id },
       })
-    )
-  );
+    ),
+    // Attach the time this bill actually covers. Without it, a return's whole
+    // history counts as billed forever and any time logged afterwards is
+    // swallowed by this bill instead of showing up as new outstanding WIP.
+    prisma.timeEntry.updateMany({
+      where: { engagementId: { in: engagements.map((e) => e.id) }, billId: null },
+      data: { billId: bill.id },
+    }),
+  ]);
 
   res.json({ billId: bill.id, billedReturns: engagements.length, amount });
 });
@@ -77,10 +84,17 @@ router.post("/bill-engagement", async (req, res) => {
   const bill = await prisma.bill.create({ data: { clientId, amount, note } });
 
   if (engagementId) {
-    await prisma.engagement.update({
-      where: { id: engagementId },
-      data: { billed: true, billedAmount: amount, billedDate: bill.billedDate, billId: bill.id },
-    });
+    await prisma.$transaction([
+      prisma.engagement.update({
+        where: { id: engagementId },
+        data: { billed: true, billedAmount: amount, billedDate: bill.billedDate, billId: bill.id },
+      }),
+      // Only the time outstanding right now belongs to this bill — see /bill.
+      prisma.timeEntry.updateMany({
+        where: { engagementId, billId: null },
+        data: { billId: bill.id },
+      }),
+    ]);
   } else {
     // General bucket — mark the client's unbilled no-return time to this bill.
     await prisma.timeEntry.updateMany({
@@ -101,14 +115,17 @@ router.get("/history", async (_req, res) => {
       engagements: {
         select: { timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } } },
       },
-      timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+      timeEntries: { select: { engagementId: true, hours: true, rate: true, user: { select: { billableRate: true } } } },
     },
     orderBy: { billedDate: "desc" },
   });
 
   res.json(
     bills.map((b) => {
-      const all = [...b.engagements.flatMap((e) => e.timeEntries), ...b.timeEntries];
+      // The time entries actually attached to this bill. Reading them off the
+      // billed returns instead would pull in work logged after the bill and
+      // quietly restate its hours and realization.
+      const all = b.timeEntries;
       const hours = all.reduce((s, t) => s + t.hours, 0);
       const stdValue = valueOf(all);
       return {
@@ -121,7 +138,11 @@ router.get("/history", async (_req, res) => {
         amount: b.amount,
         billedDate: b.billedDate,
         note: b.note ?? "",
-        returns: b.engagements.length,
+        // Counted from the bill's own time entries. Engagement.billId only ever
+        // points at the most recent bill, so billing a return a second time
+        // would otherwise drop the earlier bill's count to zero.
+        returns:
+          new Set(all.map((t) => t.engagementId).filter(Boolean)).size || b.engagements.length,
         hours,
         stdValue,
         realization: stdValue > 0 ? b.amount / stdValue : null,
@@ -139,21 +160,26 @@ router.get("/client/:clientId/bills", async (req, res) => {
     include: {
       engagements: {
         select: {
+          id: true,
           formType: true,
           jurisdiction: true,
           description: true,
           taxYear: true,
           billedAmount: true,
-          timeEntries: {
-            orderBy: { date: "asc" },
-            select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
-          },
         },
       },
-      // General (no-return) time billed directly on this bill.
+      // Every time entry on this bill — return time and general time alike.
+      // Scoped by billId so work logged after the bill isn't folded into it.
       timeEntries: {
         orderBy: { date: "asc" },
-        select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
+        select: {
+          engagementId: true,
+          date: true,
+          hours: true,
+          description: true,
+          rate: true,
+          user: { select: { name: true, billableRate: true } },
+        },
       },
     },
   });
@@ -167,7 +193,7 @@ router.get("/client/:clientId/bills", async (req, res) => {
         description: t.description,
         value: t.hours * (t.rate ?? t.user?.billableRate ?? 0),
       });
-      const timeEntries = [...b.engagements.flatMap((e) => e.timeEntries.map(mapT)), ...b.timeEntries.map(mapT)];
+      const timeEntries = b.timeEntries.map(mapT);
       const totalHours = timeEntries.reduce((s, t) => s + t.hours, 0);
       const returns = b.engagements.map((e) => ({
         formType: e.formType,
@@ -175,7 +201,7 @@ router.get("/client/:clientId/bills", async (req, res) => {
         description: e.description,
         taxYear: e.taxYear,
         billedAmount: e.billedAmount ?? 0,
-        hours: e.timeEntries.reduce((s, t) => s + t.hours, 0),
+        hours: b.timeEntries.filter((t) => t.engagementId === e.id).reduce((s, t) => s + t.hours, 0),
       }));
       return {
         id: b.id,
@@ -195,7 +221,12 @@ router.get("/client/:clientId/bills", async (req, res) => {
 router.put("/bill/:id", async (req, res) => {
   const bill = await prisma.bill.findUnique({
     where: { id: req.params.id },
-    include: { engagements: { select: { id: true, timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } } } } },
+    include: {
+      engagements: { select: { id: true } },
+      // Weight the split by the time this bill covers, not by everything ever
+      // logged on its returns.
+      timeEntries: { select: { engagementId: true, hours: true, rate: true, user: { select: { billableRate: true } } } },
+    },
   });
   if (!bill) return res.status(404).json({ error: "Bill not found" });
 
@@ -213,7 +244,13 @@ router.put("/bill/:id", async (req, res) => {
   });
 
   // Redistribute the (possibly new) amount + date across the bill's returns.
-  const alloc = distribute(bill.engagements.map((e) => ({ id: e.id, wip: valueOf(e.timeEntries) })), updated.amount);
+  const alloc = distribute(
+    bill.engagements.map((e) => ({
+      id: e.id,
+      wip: valueOf(bill.timeEntries.filter((t) => t.engagementId === e.id)),
+    })),
+    updated.amount
+  );
   await prisma.$transaction(
     bill.engagements.map((e) =>
       prisma.engagement.update({
@@ -245,16 +282,18 @@ router.delete("/bill/:id", async (req, res) => {
 router.get("/wip/:clientId/by-user", async (req, res) => {
   const clientId = req.params.clientId;
 
-  const unbilled = await prisma.engagement.findMany({
-    where: { clientId, billed: false, deletedAt: null },
+  const engagements = await prisma.engagement.findMany({
+    where: { clientId, deletedAt: null },
     select: { id: true },
   });
-  const engIds = unbilled.map((e) => e.id);
+  const engIds = engagements.map((e) => e.id);
 
+  // Unbilled time on any of the client's returns, plus unbilled general time.
   const entries = await prisma.timeEntry.findMany({
     where: {
       clientId,
-      OR: [{ engagementId: { in: engIds } }, { engagementId: null, billId: null }],
+      billId: null,
+      OR: [{ engagementId: { in: engIds } }, { engagementId: null }],
     },
     select: { hours: true, rate: true, user: { select: { id: true, name: true, billableRate: true } } },
   });
@@ -281,7 +320,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
   const clientId = req.params.clientId;
 
   const engagements = await prisma.engagement.findMany({
-    where: { clientId, billed: false, deletedAt: null },
+    where: { clientId, deletedAt: null },
     select: {
       id: true,
       formType: true,
@@ -289,6 +328,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
       jurisdiction: true,
       description: true,
       timeEntries: {
+        where: { billId: null },
         orderBy: { date: "asc" },
         select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
       },
@@ -364,7 +404,7 @@ router.get("/firm", async (req, res) => {
       status: true,
       billed: true,
       billedAmount: true,
-      timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+      timeEntries: { select: { billId: true, hours: true, rate: true, user: { select: { billableRate: true } } } },
     },
   });
 
@@ -388,13 +428,11 @@ router.get("/firm", async (req, res) => {
       byStatus[eng.status] = (byStatus[eng.status] ?? 0) + 1;
     }
 
-    const stdValue = valueOf(eng.timeEntries);
-    if (eng.billed) {
-      billedTotal += eng.billedAmount ?? 0;
-      billedStandardValue += stdValue;
-    } else {
-      wipValue += stdValue;
-    }
+    // Split by whether the time is on a bill, not by the return's flag — a
+    // billed return can still carry new unbilled work.
+    wipValue += valueOf(eng.timeEntries.filter((t) => !t.billId));
+    billedStandardValue += valueOf(eng.timeEntries.filter((t) => t.billId));
+    if (eng.billed) billedTotal += eng.billedAmount ?? 0;
   }
 
   const realization = billedStandardValue > 0 ? billedTotal / billedStandardValue : null;
@@ -433,7 +471,13 @@ router.get("/wip", async (_req, res) => {
           billedAmount: true,
           billId: true,
           projectedFee: true,
-          timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+          // Only time that isn't on a bill yet is outstanding. Keying off the
+          // return's `billed` flag instead would hide time logged after it was
+          // billed, which is real work still owed.
+          timeEntries: {
+            where: { billId: null },
+            select: { hours: true, rate: true, user: { select: { billableRate: true } } },
+          },
         },
       },
       // General time not tied to a return (and not yet billed) is outstanding WIP.
@@ -464,13 +508,15 @@ router.get("/wip", async (_req, res) => {
       let billedTotal = c.bills.reduce((s, b) => s + b.amount, 0);
 
       for (const eng of c.engagements) {
-        const engValue = value(eng.timeEntries);
+        // eng.timeEntries is already filtered to unbilled time, so a return
+        // that was billed earlier still contributes any work done since.
+        wipValue += value(eng.timeEntries);
         const engHours = hoursOf(eng.timeEntries);
-        if (!eng.billed) {
-          wipValue += engValue;
-          wipHours += engHours;
-          if (engHours > 0 || (eng.projectedFee ?? 0) > 0) openEngagements++;
-        } else if (!eng.billId) {
+        wipHours += engHours;
+        if (engHours > 0 || (!eng.billed && (eng.projectedFee ?? 0) > 0)) openEngagements++;
+        // Returns marked billed by the checkbox on the client page never create
+        // a bill record, so their amount is counted here instead.
+        if (eng.billed && !eng.billId) {
           billedTotal += eng.billedAmount ?? 0;
         }
       }

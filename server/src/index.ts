@@ -13,6 +13,7 @@ import reportsRouter from "./routes/reports";
 import openItemsRouter from "./routes/openItems";
 import tasksRouter from "./routes/tasks";
 import clientNotesRouter from "./routes/clientNotes";
+import { backfillBilledTime } from "./lib/backfillBilledTime";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -47,5 +48,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 app.listen(PORT, () => {
+  // One-off repair of bills raised before time entries were linked to them.
+  // Idempotent, so it is a no-op on every boot after the first.
+  backfillBilledTime().catch((e) => console.error("[billing] backfill failed", e));
   console.log(`API server listening on port ${PORT}`);
 });
