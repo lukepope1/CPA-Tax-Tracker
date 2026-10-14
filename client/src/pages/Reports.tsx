@@ -13,10 +13,17 @@ import {
   engagementLabel,
 } from "../lib/types";
 
-type ReportKey = "staff" | "clients" | "aging" | "turnaround" | "status" | "capacity" | "profit";
+type ReportKey = "staff" | "clients" | "nonCharge" | "aging" | "turnaround" | "status" | "capacity" | "profit";
 
 interface StaffRow { name: string; hours: number; billableHours: number; value: number }
 interface ClientRow { name: string; hours: number; value: number }
+interface NonChargeReport {
+  totalHours: number;
+  loggedHours: number;
+  shareOfLogged: number | null;
+  categories: { category: string; hours: number; staff: { name: string; hours: number }[] }[];
+  staff: { name: string; hours: number }[];
+}
 interface AgingRow { name: string; d0_30: number; d31_60: number; d61_90: number; d90plus: number; total: number }
 interface TurnRow {
   client: string; formType: FormType; jurisdiction: string | null; taxYear: number;
@@ -56,6 +63,7 @@ function todayISO() {
 const TABS: { key: ReportKey; label: string }[] = [
   { key: "staff", label: "Staff Hours" },
   { key: "clients", label: "Client Hours" },
+  { key: "nonCharge", label: "Non-Chargeable" },
   { key: "aging", label: "WIP Aging" },
   { key: "turnaround", label: "Turnaround" },
   { key: "status", label: "Time in Status" },
@@ -85,6 +93,12 @@ export default function Reports() {
     queryKey: ["report-clients", from, to],
     queryFn: async () => (await api.get("/reports/client-hours", { params: dateParams })).data,
     enabled: tab === "clients",
+  });
+
+  const nonCharge = useQuery<NonChargeReport>({
+    queryKey: ["report-non-chargeable", from, to],
+    queryFn: async () => (await api.get("/reports/non-chargeable", { params: dateParams })).data,
+    enabled: tab === "nonCharge",
   });
 
   const aging = useQuery<AgingRow[]>({
@@ -147,6 +161,16 @@ export default function Reports() {
     } else if (tab === "clients" && clients.data) {
       sheet = "Client Hours";
       rows = clients.data.map((r) => ({ Client: r.name, Hours: Number(r.hours.toFixed(1)), Value: Number(r.value.toFixed(2)) }));
+    } else if (tab === "nonCharge" && nonCharge.data) {
+      sheet = "Non-Chargeable";
+      rows = nonCharge.data.categories.flatMap((c) =>
+        c.staff.map((s2) => ({
+          Category: c.category,
+          Staff: s2.name,
+          Hours: Number(s2.hours.toFixed(1)),
+          "Category Total": Number(c.hours.toFixed(1)),
+        }))
+      );
     } else if (tab === "aging" && aging.data) {
       sheet = "WIP Aging";
       rows = aging.data.map((r) => ({
@@ -232,7 +256,7 @@ export default function Reports() {
     toast("Report exported.");
   }
 
-  const usesDates = tab === "staff" || tab === "clients" || tab === "profit";
+  const usesDates = tab === "staff" || tab === "clients" || tab === "nonCharge" || tab === "profit";
 
   return (
     <div className="space-y-4">
@@ -340,6 +364,57 @@ export default function Reports() {
               {clients.data?.length === 0 && <tr><td colSpan={3}><EmptyState title="No time in this range" /></td></tr>}
             </tbody>
           </table>
+        )}
+
+        {tab === "nonCharge" && (
+          <div>
+            {nonCharge.isLoading && <Loading />}
+            {nonCharge.data && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 uppercase">Non-Chargeable Hours</div>
+                    <div className="text-2xl font-bold text-brand-600">{nonCharge.data.totalHours.toFixed(1)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 uppercase">All Hours Logged</div>
+                    <div className="text-2xl font-bold text-gray-800">{nonCharge.data.loggedHours.toFixed(1)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 uppercase">Share of Total</div>
+                    <div className="text-2xl font-bold text-gray-800">
+                      {nonCharge.data.shareOfLogged != null
+                        ? `${(nonCharge.data.shareOfLogged * 100).toFixed(0)}%`
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b bg-gray-50">
+                      <th className="py-2 px-4">Category</th>
+                      <th className="py-2 px-4">Who</th>
+                      <th className="py-2 px-4 text-right">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nonCharge.data.categories.map((c) => (
+                      <tr key={c.category} className="border-b last:border-0 hover:bg-gray-50">
+                        <td className="py-2 px-4 font-medium text-gray-800">{c.category}</td>
+                        <td className="py-2 px-4 text-gray-600">
+                          {c.staff.map((s2) => `${s2.name} (${s2.hours.toFixed(1)})`).join(", ")}
+                        </td>
+                        <td className="py-2 px-4 text-right font-medium">{c.hours.toFixed(1)}</td>
+                      </tr>
+                    ))}
+                    {nonCharge.data.categories.length === 0 && (
+                      <tr><td colSpan={3}><EmptyState title="No non-chargeable time in this range" hint="Log it from the Time Entry page." /></td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
         )}
 
         {tab === "aging" && (

@@ -214,13 +214,15 @@ export interface TimeEntry {
   id: string;
   userId: string;
   user?: { id: string; name: string; billableRate?: number | null };
-  clientId: string;
-  client?: { id: string; name: string };
+  clientId: string | null;
+  client?: { id: string; name: string } | null;
   engagementId: string | null;
   engagement?: { id: string; formType: FormType; taxYear: number; jurisdiction?: string } | null;
   date: string;
   hours: number;
   description: string;
+  // Non-chargeable firm work category; null for ordinary client work.
+  category: string | null;
   billable: boolean;
   rate?: number | null;
 }
@@ -248,3 +250,17 @@ export interface Task {
   } | null;
   createdAt: string;
 }
+
+// Non-chargeable work categories — time that never reaches billing but still
+// counts on the time reports. Mirrors server/src/lib/categories.ts.
+export const NON_CHARGE_CATEGORIES = [
+  "Billing",
+  "Engagement Letters",
+  "Travel",
+  "Business Development",
+  "Administrative",
+  "Education",
+  "Professional Reading",
+] as const;
+
+export type NonChargeCategory = (typeof NON_CHARGE_CATEGORIES)[number];

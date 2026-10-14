@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Client, Engagement, engagementLabel, TimeEntry, User } from "../lib/types";
+import { Client, Engagement, engagementLabel, NON_CHARGE_CATEGORIES, TimeEntry, User } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
@@ -38,6 +38,10 @@ export default function TimeEntries() {
   const [hours, setHours] = useState("1.0");
   const [description, setDescription] = useState("");
   const [billable, setBillable] = useState(true);
+  // Picking a non-chargeable category turns the entry into firm time: no return,
+  // never billable, and the client becomes optional.
+  const [category, setCategory] = useState("");
+  const nonCharge = !!category;
   const [rate, setRate] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const isAdmin = user?.role === "ADMIN";
@@ -121,7 +125,8 @@ export default function TimeEntries() {
       (
         await api.post("/time-entries", {
           userId: entryFor || undefined,
-          clientId,
+          clientId: clientId || null,
+          category: category || null,
           engagementId: engagementId || undefined,
           date: new Date(date).toISOString(),
           hours: Number(hours),
@@ -143,7 +148,8 @@ export default function TimeEntries() {
       (
         await api.put(`/time-entries/${editingId}`, {
           userId: entryFor || undefined,
-          clientId,
+          clientId: clientId || null,
+          category: category || null,
           engagementId: engagementId || null,
           date: new Date(date).toISOString(),
           hours: Number(hours),
@@ -178,12 +184,14 @@ export default function TimeEntries() {
     setHours("1.0");
     setRate("");
     setBillable(true);
+    setCategory("");
   }
 
   function startEdit(entry: TimeEntry) {
     setEditingId(entry.id);
     setEntryFor(entry.userId);
-    setClientId(entry.clientId);
+    setClientId(entry.clientId ?? "");
+    setCategory(entry.category ?? "");
     setEngagementId(entry.engagementId ?? "");
     setDate(entry.date.slice(0, 10));
     setHours(String(entry.hours));
@@ -205,7 +213,7 @@ export default function TimeEntries() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!clientId) return;
+    if (!clientId && !category) return;
     if (editingId) updateEntry.mutate();
     else createEntry.mutate();
   }
@@ -214,9 +222,12 @@ export default function TimeEntries() {
     return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
   }
 
-  const effectiveRate = (e: TimeEntry) => e.rate ?? e.user?.billableRate ?? null;
+  // Non-chargeable time has no standard value, so it is priced at nothing
+  // rather than at the staff rate.
+  const effectiveRate = (e: TimeEntry) => (e.billable ? e.rate ?? e.user?.billableRate ?? null : null);
   const totalHours = entries?.reduce((sum, e) => sum + e.hours, 0) ?? 0;
   const totalValue = entries?.reduce((sum, e) => sum + e.hours * (effectiveRate(e) ?? 0), 0) ?? 0;
+  const nonChargeHours = entries?.filter((e) => e.category).reduce((sum, e) => sum + e.hours, 0) ?? 0;
 
   const currency = (n: number) =>
     n.toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -328,9 +339,9 @@ export default function TimeEntries() {
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={clientId} onChange={(e) => { setClientId(e.target.value); setEngagementId(""); }} required>
-            <option value="">Select a client...</option>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Client{nonCharge ? " (optional)" : ""}</label>
+          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={clientId} onChange={(e) => { setClientId(e.target.value); setEngagementId(""); }} required={!nonCharge}>
+            <option value="">{nonCharge ? "No client — firm time" : "Select a client..."}</option>
             {clients?.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -338,10 +349,26 @@ export default function TimeEntries() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Return (optional)</label>
-          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={engagementId} onChange={(e) => setEngagementId(e.target.value)} disabled={!clientId}>
+          <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm" value={nonCharge ? "" : engagementId} onChange={(e) => setEngagementId(e.target.value)} disabled={!clientId || nonCharge}>
             <option value="">General / none</option>
             {engagements?.filter((eng) => !eng.parentEngagementId).map((eng) => (
               <option key={eng.id} value={eng.id}>{engagementLabel(eng)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Non-chargeable</label>
+          <select
+            className={`w-full border border-gray-300 rounded px-3 py-2 text-sm ${nonCharge ? "text-gray-800" : "text-gray-400"}`}
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              if (e.target.value) { setEngagementId(""); setBillable(false); } else { setBillable(true); }
+            }}
+          >
+            <option value="">Chargeable client work</option>
+            {NON_CHARGE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </div>
@@ -371,7 +398,7 @@ export default function TimeEntries() {
         </div>
         <div className="flex items-end gap-4">
           <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={billable} onChange={(e) => setBillable(e.target.checked)} />
+            <input type="checkbox" checked={billable && !nonCharge} disabled={nonCharge} onChange={(e) => setBillable(e.target.checked)} />
             Billable
           </label>
           <button type="submit" disabled={createEntry.isPending || updateEntry.isPending} className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700 disabled:opacity-50">
@@ -403,7 +430,12 @@ export default function TimeEntries() {
               </select>
             )}
           </div>
-          <span className="text-sm text-gray-500">Total: {totalHours.toFixed(2)} hrs &middot; {currency(totalValue)}</span>
+          <span className="text-sm text-gray-500">
+            Total: {totalHours.toFixed(2)} hrs &middot; {currency(totalValue)}
+            {nonChargeHours > 0 && (
+              <span className="ml-2 text-gray-400">({nonChargeHours.toFixed(2)} hrs non-chargeable)</span>
+            )}
+          </span>
         </div>
         <table className="w-full text-sm">
           <thead>
@@ -428,8 +460,16 @@ export default function TimeEntries() {
               return (
               <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50">
                 <td className="py-2 px-4 whitespace-nowrap">{formatDate(e.date)}</td>
-                <td className="py-2 px-4">{e.client?.name}</td>
-                <td className="py-2 px-4 whitespace-nowrap">{e.engagement ? engagementLabel(e.engagement) : "-"}</td>
+                <td className="py-2 px-4">{e.client?.name ?? <span className="text-gray-400">Firm</span>}</td>
+                <td className="py-2 px-4 whitespace-nowrap">
+                  {e.category ? (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">{e.category}</span>
+                  ) : e.engagement ? (
+                    engagementLabel(e.engagement)
+                  ) : (
+                    "-"
+                  )}
+                </td>
                 <td className="py-2 px-4">{e.description}</td>
                 <td className="py-2 px-4">{e.hours}</td>
                 <td className="py-2 px-4 whitespace-nowrap">

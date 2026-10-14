@@ -42,7 +42,11 @@ router.post("/bill", async (req, res) => {
     where: { clientId, billed: false, deletedAt: null, client: { is: { deletedAt: null } } },
     select: {
       id: true,
-      timeEntries: { select: { hours: true, rate: true, user: { select: { billableRate: true } } } },
+      // Weight the split by billable, still-unbilled time only.
+      timeEntries: {
+        where: { billId: null, billable: true },
+        select: { hours: true, rate: true, user: { select: { billableRate: true } } },
+      },
     },
   });
   if (engagements.length === 0) {
@@ -63,7 +67,7 @@ router.post("/bill", async (req, res) => {
     // history counts as billed forever and any time logged afterwards is
     // swallowed by this bill instead of showing up as new outstanding WIP.
     prisma.timeEntry.updateMany({
-      where: { engagementId: { in: engagements.map((e) => e.id) }, billId: null },
+      where: { engagementId: { in: engagements.map((e) => e.id) }, billId: null, billable: true },
       data: { billId: bill.id },
     }),
   ]);
@@ -91,14 +95,14 @@ router.post("/bill-engagement", async (req, res) => {
       }),
       // Only the time outstanding right now belongs to this bill — see /bill.
       prisma.timeEntry.updateMany({
-        where: { engagementId, billId: null },
+        where: { engagementId, billId: null, billable: true },
         data: { billId: bill.id },
       }),
     ]);
   } else {
     // General bucket — mark the client's unbilled no-return time to this bill.
     await prisma.timeEntry.updateMany({
-      where: { clientId, engagementId: null, billId: null },
+      where: { clientId, engagementId: null, billId: null, billable: true },
       data: { billId: bill.id },
     });
   }
@@ -293,6 +297,7 @@ router.get("/wip/:clientId/by-user", async (req, res) => {
     where: {
       clientId,
       billId: null,
+      billable: true,
       OR: [{ engagementId: { in: engIds } }, { engagementId: null }],
     },
     select: { hours: true, rate: true, user: { select: { id: true, name: true, billableRate: true } } },
@@ -328,7 +333,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
       jurisdiction: true,
       description: true,
       timeEntries: {
-        where: { billId: null },
+        where: { billId: null, billable: true },
         orderBy: { date: "asc" },
         select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
       },
@@ -336,7 +341,7 @@ router.get("/wip/:clientId/by-engagement", async (req, res) => {
   });
 
   const general = await prisma.timeEntry.findMany({
-    where: { clientId, engagementId: null, billId: null },
+    where: { clientId, engagementId: null, billId: null, billable: true },
     orderBy: { date: "asc" },
     select: { date: true, hours: true, description: true, rate: true, user: { select: { name: true, billableRate: true } } },
   });
@@ -404,7 +409,10 @@ router.get("/firm", async (req, res) => {
       status: true,
       billed: true,
       billedAmount: true,
-      timeEntries: { select: { billId: true, hours: true, rate: true, user: { select: { billableRate: true } } } },
+      timeEntries: {
+        where: { billable: true },
+        select: { billId: true, hours: true, rate: true, user: { select: { billableRate: true } } },
+      },
     },
   });
 
@@ -475,14 +483,14 @@ router.get("/wip", async (_req, res) => {
           // return's `billed` flag instead would hide time logged after it was
           // billed, which is real work still owed.
           timeEntries: {
-            where: { billId: null },
+            where: { billId: null, billable: true },
             select: { hours: true, rate: true, user: { select: { billableRate: true } } },
           },
         },
       },
       // General time not tied to a return (and not yet billed) is outstanding WIP.
       timeEntries: {
-        where: { engagementId: null, billId: null },
+        where: { engagementId: null, billId: null, billable: true },
         select: { hours: true, rate: true, user: { select: { billableRate: true } } },
       },
       bills: { select: { amount: true } },

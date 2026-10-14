@@ -176,13 +176,18 @@ model TimeEntry {
   id           String      @id @default(cuid())
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       String
-  client       Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId     String
+  // Optional: non-chargeable firm time (Administrative, Education, …) isn't
+  // tied to a client at all.
+  client       Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String?
   engagement   Engagement? @relation(fields: [engagementId], references: [id])
   engagementId String?
   date         DateTime
   hours        Float
   description  String
+  // Non-chargeable work category. Null means ordinary client work. Set means
+  // the entry never reaches billing — see NON_CHARGE_CATEGORIES on the server.
+  category     String?
   billable     Boolean     @default(true)
   rate         Float? // optional per-entry rate override; falls back to the user's billable rate
   // Links general (no-engagement) time to the bill it was included on.

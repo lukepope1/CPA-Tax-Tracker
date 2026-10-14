@@ -27,17 +27,72 @@ router.get("/staff-hours", async (req, res) => {
     const cur = map.get(id) ?? { name: t.user?.name ?? "Unknown", hours: 0, billableHours: 0, value: 0 };
     cur.hours += t.hours;
     if (t.billable) cur.billableHours += t.hours;
-    cur.value += val(t);
+    // Only billable time carries a standard value; non-chargeable hours still
+    // count toward the total so a day adds up.
+    cur.value += t.billable ? val(t) : 0;
     map.set(id, cur);
   }
   res.json([...map.values()].sort((a, b) => b.hours - a.hours));
+});
+
+// Non-chargeable firm time for a date range: totals per category, each broken
+// down by staff, plus the share of all logged time it represents.
+router.get("/non-chargeable", async (req, res) => {
+  const where = { date: range(req), category: { not: null } };
+
+  const [entries, allHours] = await Promise.all([
+    prisma.timeEntry.findMany({
+      where,
+      select: {
+        category: true,
+        hours: true,
+        client: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.timeEntry.aggregate({ where: { date: range(req) }, _sum: { hours: true } }),
+  ]);
+
+  const byCategory = new Map<string, { category: string; hours: number; staff: Map<string, number> }>();
+  const byStaff = new Map<string, { name: string; hours: number }>();
+
+  for (const t of entries) {
+    const cat = t.category ?? "Uncategorised";
+    const row = byCategory.get(cat) ?? { category: cat, hours: 0, staff: new Map() };
+    row.hours += t.hours;
+    const who = t.user?.name ?? "Unknown";
+    row.staff.set(who, (row.staff.get(who) ?? 0) + t.hours);
+    byCategory.set(cat, row);
+
+    const s = byStaff.get(who) ?? { name: who, hours: 0 };
+    s.hours += t.hours;
+    byStaff.set(who, s);
+  }
+
+  const totalHours = [...byCategory.values()].reduce((s, r) => s + r.hours, 0);
+  const loggedHours = allHours._sum.hours ?? 0;
+
+  res.json({
+    totalHours,
+    loggedHours,
+    // What fraction of everything logged in the window was non-chargeable.
+    shareOfLogged: loggedHours > 0 ? totalHours / loggedHours : null,
+    categories: [...byCategory.values()]
+      .map((r) => ({
+        category: r.category,
+        hours: r.hours,
+        staff: [...r.staff.entries()].map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours),
+      }))
+      .sort((a, b) => b.hours - a.hours),
+    staff: [...byStaff.values()].sort((a, b) => b.hours - a.hours),
+  });
 });
 
 // Hours & value by client for a date range.
 router.get("/client-hours", async (req, res) => {
   const entries = await prisma.timeEntry.findMany({
     where: { date: range(req), client: { is: { deletedAt: null } } },
-    select: { hours: true, rate: true, user: { select: { billableRate: true } }, client: { select: { id: true, name: true } } },
+    select: { hours: true, rate: true, billable: true, user: { select: { billableRate: true } }, client: { select: { id: true, name: true } } },
   });
 
   const map = new Map<string, { name: string; hours: number; value: number }>();
@@ -45,7 +100,8 @@ router.get("/client-hours", async (req, res) => {
     const id = t.client?.id ?? "?";
     const cur = map.get(id) ?? { name: t.client?.name ?? "Unknown", hours: 0, value: 0 };
     cur.hours += t.hours;
-    cur.value += val(t);
+    // Non-chargeable time is real time, but it has no standard value.
+    cur.value += t.billable ? val(t) : 0;
     map.set(id, cur);
   }
   res.json([...map.values()].sort((a, b) => b.value - a.value));
@@ -335,7 +391,7 @@ router.get("/client-profitability", async (req, res) => {
   const [entries, bills, checkboxBilled] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { date: period, client: { is: { deletedAt: null } } },
-      select: { hours: true, rate: true, user: { select: { billableRate: true } }, client: { select: { id: true, name: true } } },
+      select: { hours: true, rate: true, billable: true, user: { select: { billableRate: true } }, client: { select: { id: true, name: true } } },
     }),
     prisma.bill.findMany({
       where: { billedDate: period, client: { is: { deletedAt: null } } },
@@ -358,7 +414,9 @@ router.get("/client-profitability", async (req, res) => {
   for (const t of entries) {
     const cur = get(t.client?.id ?? "?", t.client?.name ?? "Unknown");
     cur.hours += t.hours;
-    cur.stdValue += val(t);
+    // Non-chargeable time counts as effort but carries no standard value, so
+    // it can't drag realization down as if it were unbilled client work.
+    cur.stdValue += t.billable ? val(t) : 0;
   }
   for (const b of bills) get(b.client.id, b.client.name).billed += b.amount;
   for (const e of checkboxBilled) get(e.client.id, e.client.name).billed += e.billedAmount ?? 0;
