@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../lib/auth";
+import { startOfToday } from "../lib/dates";
 
 const router = Router();
 router.use(requireAuth);
@@ -56,7 +57,9 @@ router.get("/", async (req, res) => {
   if (!taxYear && (days || from || to)) {
     // Apply a date window only when one is requested. With no window we return
     // every outstanding item (including overdue), which is the default view.
-    const fromDate = from ? new Date(String(from)) : new Date();
+    // Start the window at the start of today, so something due today is still
+    // "upcoming" rather than falling between this and the overdue list.
+    const fromDate = from ? new Date(String(from)) : startOfToday();
     let toDate: Date;
     if (to) {
       toDate = new Date(String(to));
@@ -99,7 +102,7 @@ router.get("/overdue", async (req, res) => {
   const { assignedToId } = req.query;
   const dueDates = await prisma.dueDate.findMany({
     where: {
-      dueDate: { lt: new Date() },
+      dueDate: { lt: startOfToday() },
       completed: false,
       engagement: engagementFilter({ assignedToId: assignedToId ? String(assignedToId) : undefined }),
       NOT: EXTENSION_NOT,

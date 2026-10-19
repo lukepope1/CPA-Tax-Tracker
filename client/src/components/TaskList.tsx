@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Client, Task, User } from "../lib/types";
+import { isOverdue } from "../lib/dates";
 
 // What this list is "about". The same three shapes drive both the query filter
 // and the fields stamped onto anything created here, so a task added under a
@@ -106,7 +107,7 @@ export default function TaskList({
   });
 
   const open = (tasks ?? []).filter((t) => !t.completed);
-  const overdue = open.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length;
+  const overdue = open.filter((t) => isOverdue(t.dueDate)).length;
 
   const labelClass = compact ? "text-xs font-medium text-gray-500" : "text-sm font-semibold text-gray-700";
   const rowClass = compact ? "text-xs" : "text-sm";
@@ -203,7 +204,7 @@ export default function TaskList({
       {tasks && tasks.length > 0 ? (
         <ul className={compact ? "space-y-1" : "divide-y divide-gray-100"}>
           {tasks.map((t) => {
-            const isOverdue = !t.completed && t.dueDate && new Date(t.dueDate) < new Date();
+            const overdueRow = !t.completed && isOverdue(t.dueDate);
             return (
               <li key={t.id} className={`group flex items-center gap-3 ${compact ? "" : "py-2"}`}>
                 <input
@@ -223,7 +224,7 @@ export default function TaskList({
                 <span className="text-xs text-gray-400">{t.assignedTo?.name ?? "Unassigned"}</span>
                 <span
                   className={`w-28 text-right text-xs ${
-                    isOverdue ? "font-medium text-red-600" : t.dueDate ? "text-gray-500" : "text-gray-300"
+                    overdueRow ? "font-medium text-red-600" : t.dueDate ? "text-gray-500" : "text-gray-300"
                   }`}
                 >
                   {t.dueDate ? formatDate(t.dueDate) : "No due date"}

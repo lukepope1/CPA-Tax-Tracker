@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../lib/auth";
+import { daysFromToday, startOfToday } from "../lib/dates";
 
 const router = Router();
 router.use(requireAuth);
@@ -11,10 +12,11 @@ router.get("/summary", async (req, res) => {
   const userId = unassigned ? undefined : raw;
 
   const now = new Date();
-  const in7 = new Date(now);
-  in7.setDate(in7.getDate() + 7);
-  const in30 = new Date(now);
-  in30.setDate(in30.getDate() + 30);
+  // Deadlines are calendar days: anything due today still counts as upcoming,
+  // and only yesterday and earlier are overdue.
+  const today = startOfToday();
+  const in7 = daysFromToday(7);
+  const in30 = daysFromToday(30);
   const weekAgo = new Date(now);
   weekAgo.setDate(weekAgo.getDate() - 7);
 
@@ -66,13 +68,13 @@ router.get("/summary", async (req, res) => {
   else if (userId) taskWhere.assignedToId = userId;
 
   const [overdueCount, dueThisWeek, dueThisMonth, engagementsByStatus, hoursThisWeek, tasksOpen, tasksOverdue] = await Promise.all([
-    prisma.dueDate.count({ where: { completed: false, dueDate: { lt: now }, ...activeFilters } }),
-    prisma.dueDate.count({ where: { completed: false, dueDate: { gte: now, lte: in7 }, ...activeFilters } }),
-    prisma.dueDate.count({ where: { completed: false, dueDate: { gte: now, lte: in30 }, ...activeFilters } }),
+    prisma.dueDate.count({ where: { completed: false, dueDate: { lt: today }, ...activeFilters } }),
+    prisma.dueDate.count({ where: { completed: false, dueDate: { gte: today, lte: in7 }, ...activeFilters } }),
+    prisma.dueDate.count({ where: { completed: false, dueDate: { gte: today, lte: in30 }, ...activeFilters } }),
     prisma.engagement.groupBy({ by: ["status"], where: engagementWhere, _count: { _all: true } }),
     prisma.timeEntry.aggregate({ where: hoursWhere, _sum: { hours: true } }),
     prisma.task.count({ where: taskWhere }),
-    prisma.task.count({ where: { ...taskWhere, dueDate: { not: null, lt: now } } }),
+    prisma.task.count({ where: { ...taskWhere, dueDate: { not: null, lt: today } } }),
   ]);
 
   res.json({

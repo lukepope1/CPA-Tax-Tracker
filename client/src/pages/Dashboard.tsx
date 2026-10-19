@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, statusClasses, useSort } from "../components/ui";
 import TaskList from "../components/TaskList";
+import { daysPastDue, isOverdue } from "../lib/dates";
 import {
   DueDate,
   ENGAGEMENT_STATUS_LABELS,
@@ -59,11 +60,6 @@ const CARD_TITLES: Record<CardKey, string> = {
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
-}
-
-// Whole days a task is past its due date.
-function daysPastDue(due: string) {
-  return Math.max(0, Math.floor((Date.now() - new Date(due).getTime()) / 86400000));
 }
 
 // Days since the oldest outstanding request on a return.
@@ -127,7 +123,7 @@ export default function Dashboard() {
     queryKey: ["tasks", "overdue-banner", userId],
     queryFn: async () => (await api.get("/tasks", { params: { assignedToId: userId } })).data,
   });
-  const overdueTasks = (taskList ?? []).filter((t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date());
+  const overdueTasks = (taskList ?? []).filter((t) => !t.completed && isOverdue(t.dueDate));
 
   // Tasks checked off in the last week sit at the bottom of the dashboard, so
   // one closed by accident can be put back without hunting for it.
@@ -350,7 +346,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {displayed.map((item, idx) => {
-                const overdueItem = item.nextDueDate && new Date(item.nextDueDate) < new Date();
+                const overdueItem = isOverdue(item.nextDueDate);
                 return (
                   <tr
                     key={item.id}
