@@ -103,6 +103,33 @@ export default function TaskList({
     onSuccess: refresh,
   });
 
+  // Re-dating an existing task. Same UTC-midnight convention as when adding one.
+  const [editingDueId, setEditingDueId] = useState<string | null>(null);
+  // What's in the date box while editing. Saved only when you're done (Enter or
+  // clicking away) — a date input reports a valid date after every typed digit,
+  // so saving on each change would store January the moment you typed "1".
+  const [draftDue, setDraftDue] = useState("");
+
+  function startDueEdit(t: Task) {
+    setDraftDue(t.dueDate ? t.dueDate.slice(0, 10) : "");
+    setEditingDueId(t.id);
+  }
+
+  function commitDue(t: Task) {
+    const current = t.dueDate ? t.dueDate.slice(0, 10) : "";
+    // Unchanged, or a half-typed (empty) value: just close.
+    if (!draftDue || draftDue === current) return setEditingDueId(null);
+    setDueDate.mutate({ id: t.id, due: draftDue });
+  }
+  const setDueDate = useMutation({
+    mutationFn: async ({ id, due }: { id: string; due: string | null }) =>
+      api.put(`/tasks/${id}`, { dueDate: due ? new Date(`${due}T00:00:00Z`).toISOString() : null }),
+    onSuccess: () => {
+      setEditingDueId(null);
+      refresh();
+    },
+  });
+
   const remove = useMutation({
     mutationFn: async (id: string) => api.delete(`/tasks/${id}`),
     onSuccess: refresh,
@@ -229,12 +256,59 @@ export default function TaskList({
                 </span>
                 <span className="text-xs text-gray-400">{t.assignedTo?.name ?? "Unassigned"}</span>
                 <span className="min-w-[7rem] text-right text-xs">
-                  {!t.dueDate ? (
-                    <span className="text-gray-400">No due date</span>
+                  {editingDueId === t.id ? (
+                    <span className="inline-flex items-center gap-1">
+                      <input
+                        type="date"
+                        autoFocus
+                        className="rounded border border-brand-300 px-1.5 py-0.5 text-xs text-gray-800"
+                        value={draftDue}
+                        disabled={setDueDate.isPending}
+                        onChange={(e) => setDraftDue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitDue(t);
+                          if (e.key === "Escape") setEditingDueId(null);
+                        }}
+                        onBlur={(e) => {
+                          // Moving to the "remove date" button isn't "done".
+                          if (!(e.relatedTarget as HTMLElement | null)?.dataset?.clearDue) commitDue(t);
+                        }}
+                        aria-label="Due date"
+                      />
+                      {t.dueDate && (
+                        <button
+                          type="button"
+                          data-clear-due="1"
+                          className="rounded px-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                          title="Remove the due date"
+                          onClick={() => setDueDate.mutate({ id: t.id, due: null })}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </span>
                   ) : t.completed ? (
-                    <span className="text-gray-500 line-through">{formatDate(t.dueDate)}</span>
+                    t.dueDate ? (
+                      <span className="text-gray-500 line-through">{formatDate(t.dueDate)}</span>
+                    ) : (
+                      <span className="text-gray-400">No due date</span>
+                    )
                   ) : (
-                    <DueChip date={t.dueDate} />
+                    // Open tasks: the date is the control for changing it.
+                    <button
+                      type="button"
+                      onClick={() => startDueEdit(t)}
+                      className="rounded-full hover:ring-2 hover:ring-brand-200"
+                      title={t.dueDate ? "Change due date" : "Add a due date"}
+                    >
+                      {t.dueDate ? (
+                        <DueChip date={t.dueDate} />
+                      ) : (
+                        <span className="inline-block px-1 text-gray-400 underline decoration-dotted hover:text-brand-600">
+                          No due date
+                        </span>
+                      )}
+                    </button>
                   )}
                 </span>
                 <button
