@@ -121,12 +121,15 @@ export default function TaskList({
       }}
     >
       <input
-        className={`flex-1 min-w-[10rem] border border-gray-300 rounded px-2 py-1 ${rowClass}`}
+        className={`w-full lg:w-auto lg:flex-1 lg:min-w-[10rem] border border-gray-300 rounded px-2 py-1 ${rowClass}`}
         placeholder="Add a task…"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         autoFocus={compact}
       />
+      {/* The controls and Add travel together, so Add never wraps onto a line
+          of its own away from the fields it submits. */}
+      <div className="flex flex-wrap items-center gap-2">
       {picksClient && (
         <select
           className={`border border-gray-300 rounded px-2 py-1 max-w-[12rem] ${rowClass} ${
@@ -171,6 +174,7 @@ export default function TaskList({
           Cancel
         </button>
       )}
+      </div>
     </form>
   );
 

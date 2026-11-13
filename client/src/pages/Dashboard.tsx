@@ -331,6 +331,7 @@ export default function Dashboard() {
           )}
         </div>
         {inbox && inbox.length > 0 ? (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
@@ -416,6 +417,7 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
+          </div>
         ) : (
           <p className="text-sm text-gray-500">No returns currently assigned and in progress.</p>
         )}
@@ -513,11 +515,17 @@ function StatCard({
 }) {
   const body = (
     <>
-      <p className="text-xs uppercase tracking-wide text-gray-500">
-        {label}
-        {onClick && <span className="ml-1.5 text-gray-400">{open ? "▾" : "▸"}</span>}
-      </p>
-      <p className={`text-2xl font-semibold mt-1 ${accent}`}>{value}</p>
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <p className={`text-2xl font-semibold ${accent}`}>{value}</p>
+        {/* A faint ▸ beside the label didn't read as clickable; a worded cue
+            in the brand colour does. */}
+        {onClick && (
+          <span className="mb-1 text-xs font-medium text-brand-600 group-hover:underline">
+            {open ? "Hide list ▴" : "View list ▾"}
+          </span>
+        )}
+      </div>
     </>
   );
 
@@ -533,7 +541,7 @@ function StatCard({
       onClick={onClick}
       aria-expanded={open}
       title="Click to see the deadlines behind this number"
-      className={`${base} w-full text-left hover:shadow cursor-pointer ${
+      className={`${base} group w-full text-left hover:shadow cursor-pointer hover:border-brand-200 ${
         open ? "border-brand-300 ring-1 ring-brand-200" : "border-gray-100"
       }`}
     >
@@ -544,6 +552,7 @@ function StatCard({
 
 function DueDateTable({ items }: { items: DueDate[] }) {
   return (
+    <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead>
         <tr className="text-left text-gray-500 border-b">
@@ -572,5 +581,6 @@ function DueDateTable({ items }: { items: DueDate[] }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }

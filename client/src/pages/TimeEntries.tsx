@@ -437,6 +437,9 @@ export default function TimeEntries() {
             )}
           </span>
         </div>
+        {/* Scrolls inside the card on narrow screens — the card clips its overflow,
+            which used to hide the Edit and Delete buttons entirely. */}
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-gray-500 border-b">
@@ -494,6 +497,7 @@ export default function TimeEntries() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

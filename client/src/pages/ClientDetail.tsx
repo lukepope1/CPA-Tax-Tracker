@@ -755,7 +755,9 @@ export default function ClientDetail() {
                   </span>
                   {eng.description && <span className="ml-2 text-sm font-normal text-gray-500">— {eng.description}</span>}
                 </h3>
-                <div className="flex items-center gap-2">
+                {/* Wraps onto a second line on a phone instead of pushing the
+                    checkbox and Delete past the card edge. */}
+                <div className="flex flex-wrap items-center gap-2">
                   <select
                     className="border border-gray-300 rounded px-2 py-1 text-sm"
                     value={eng.status}
@@ -775,7 +777,7 @@ export default function ClientDetail() {
                       <option key={u.id} value={u.id}>{u.name}</option>
                     ))}
                   </select>
-                  <label className="flex items-center gap-1 text-sm text-gray-600">
+                  <label className="flex items-center gap-1 text-sm text-gray-600 whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={eng.extensionFiled}
@@ -784,7 +786,7 @@ export default function ClientDetail() {
                     Extension filed
                   </label>
                   <button
-                    className="text-sm text-red-600 hover:underline ml-2"
+                    className="text-sm text-red-600 hover:underline sm:ml-2"
                     onClick={() => handleDeleteEngagement(eng)}
                   >
                     Delete
