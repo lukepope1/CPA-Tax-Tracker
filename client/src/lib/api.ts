@@ -4,7 +4,7 @@ import axios from "axios";
 // "/api" — tolerant of VITE_API_URL being set with or without the suffix or a
 // trailing slash (a common deployment foot-gun).
 function resolveBaseUrl(): string {
-  const raw = (import.meta.env.VITE_API_URL || "http://localhost:4000/api").replace(/\/+$/, "");
+  const raw = (import.meta.env.VITE_API_URL || "http://localhost:4200/api").replace(/\/+$/, "");
   return raw.endsWith("/api") ? raw : `${raw}/api`;
 }
 

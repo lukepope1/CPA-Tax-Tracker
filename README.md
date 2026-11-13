@@ -67,7 +67,7 @@ Edit `server/.env`:
   `postgresql://cpa:cpa@localhost:5432/cpa_tax_tracker?schema=public`
 - `JWT_SECRET` – set to a long random string
 
-`client/.env` defaults to `VITE_API_URL=http://localhost:4000/api`, which matches the server's default port.
+`client/.env` defaults to `VITE_API_URL=http://localhost:4200/api`, which matches the server's default port.
 
 ### 4. Run database migrations and seed demo data
 
@@ -89,8 +89,8 @@ per supported form type, each with auto-generated due dates.
 npm run dev
 ```
 
-- API server: http://localhost:4000
-- Web app: http://localhost:5173
+- API server: http://localhost:4200
+- Web app: http://localhost:5180
 
 ## Project structure
 

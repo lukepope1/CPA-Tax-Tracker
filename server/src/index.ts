@@ -16,11 +16,13 @@ import clientNotesRouter from "./routes/clientNotes";
 import { backfillBilledTime } from "./lib/backfillBilledTime";
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+// 4200 keeps clear of the other local projects: the Impact CRM API uses 4000
+// and the NMTC Compliance Platform API uses 4100.
+const PORT = process.env.PORT || 4200;
 
 // CLIENT_ORIGIN may be a single URL or a comma-separated list of allowed origins
 // (e.g. the Render URL plus a custom domain).
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
+const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5180")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
