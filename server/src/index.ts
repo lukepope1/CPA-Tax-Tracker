@@ -14,6 +14,7 @@ import openItemsRouter from "./routes/openItems";
 import tasksRouter from "./routes/tasks";
 import clientNotesRouter from "./routes/clientNotes";
 import { backfillBilledTime } from "./lib/backfillBilledTime";
+import { backfillBusinessDays } from "./lib/backfillBusinessDays";
 
 const app = express();
 // 4200 keeps clear of the other local projects: the Impact CRM API uses 4000
@@ -53,5 +54,7 @@ app.listen(PORT, () => {
   // One-off repair of bills raised before time entries were linked to them.
   // Idempotent, so it is a no-op on every boot after the first.
   backfillBilledTime().catch((e) => console.error("[billing] backfill failed", e));
+  // Same for deadlines stored before the weekend/holiday rule existed.
+  backfillBusinessDays().catch((e) => console.error("[due-dates] backfill failed", e));
   console.log(`API server listening on port ${PORT}`);
 });

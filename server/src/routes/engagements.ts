@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../lib/auth";
 import { generateDueDates, FormType } from "../lib/dueDates";
+import { nextBusinessDay } from "../lib/businessDays";
 
 const router = Router();
 router.use(requireAuth);
@@ -241,7 +242,10 @@ router.post("/", async (req, res) => {
   // 706 estate and "Other / Special Project" returns have no standard deadline;
   // allow an optional manual due date (ongoing projects can be left blank).
   if ((data.formType === "OTHER" || data.formType === "FORM_706") && data.dueDate) {
-    generated.push({ type: "ORIGINAL_FILING", dueDate: new Date(data.dueDate) });
+    // A 706 is an IRS deadline, so the weekend/holiday rule applies to the date
+    // entered for it. Special projects keep exactly the date typed in.
+    const manual = new Date(data.dueDate);
+    generated.push({ type: "ORIGINAL_FILING", dueDate: data.formType === "FORM_706" ? nextBusinessDay(manual) : manual });
   }
 
   const status = data.status ?? "NOT_STARTED";

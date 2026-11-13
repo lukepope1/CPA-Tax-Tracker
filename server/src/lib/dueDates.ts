@@ -1,3 +1,5 @@
+import { nextBusinessDay } from "./businessDays";
+
 export type FormType =
   | "FORM_1040"
   | "FORM_1065"
@@ -135,7 +137,9 @@ export function generateDueDates(
     }
   }
 
-  return dates;
+  // The rules above give the nominal date (the 15th). A deadline landing on a
+  // weekend or legal holiday is actually due the next business day (IRC §7503).
+  return dates.map((d) => ({ ...d, dueDate: nextBusinessDay(d.dueDate) }));
 }
 
 export const FORM_TYPE_LABELS: Record<FormType, string> = {
