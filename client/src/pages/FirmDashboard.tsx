@@ -40,7 +40,7 @@ export default function FirmDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-gray-800">Firm Dashboard</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Firm Dashboard</h1>
         <label className="flex items-center gap-2 text-sm text-gray-600">
           Tax Year:
           <select
@@ -96,8 +96,8 @@ export default function FirmDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Returns by Type</h2>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h2 className="text-sm font-bold text-brand-800 mb-3">Returns by Type</h2>
               <table className="w-full text-sm">
                 <tbody>
                   {FORM_ORDER.filter((ft) => data.byType?.[ft]).map((ft) => (
@@ -113,8 +113,8 @@ export default function FirmDashboard() {
               </table>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Returns by Status</h2>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <h2 className="text-sm font-bold text-brand-800 mb-3">Returns by Status</h2>
               <table className="w-full text-sm">
                 <tbody>
                   {STATUS_ORDER.map((s) => (
@@ -135,9 +135,9 @@ export default function FirmDashboard() {
 
 function StatCard({ label, value, accent }: { label: string; value: string | number; accent: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow transition-shadow p-4">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-2xl font-semibold mt-1 ${accent}`}>{value}</p>
+    <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm hover:shadow-md transition-shadow p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-brand-700">{label}</p>
+      <p className={`text-3xl font-bold mt-1 ${accent}`}>{value}</p>
     </div>
   );
 }

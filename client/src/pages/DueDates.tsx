@@ -217,7 +217,7 @@ export default function DueDates() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-800">Due Dates</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Due Dates</h1>
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <label className="flex items-center gap-2">
             Status:
@@ -277,10 +277,10 @@ export default function DueDates() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b bg-gray-50">
+            <tr className="text-left text-gray-500 border-b">
               <th className="py-2 px-3 cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort("date")}>
                 <span className="inline-flex items-center gap-1">Due Date <span className={`text-[10px] ${sortKey === "date" ? "text-brand-600" : "text-gray-300"}`}>{sortArrow("date")}</span></span>
               </th>

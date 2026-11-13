@@ -169,7 +169,7 @@ export default function Admin() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-gray-800">Admin</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Admin</h1>
         <button
           className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           onClick={() => exportAll.mutate()}
@@ -179,8 +179,8 @@ export default function Admin() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1">Roll Forward Returns</h2>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 className="text-sm font-bold text-brand-800 mb-1">Roll Forward Returns</h2>
         <p className="text-xs text-gray-400 mb-3">
           Create next year's returns from an existing tax year — copies every active return (client, form, state) with fresh due
           dates and a reset status. Returns that already exist for the next year are skipped.
@@ -210,8 +210,8 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-1">Maintenance</h2>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 className="text-sm font-bold text-brand-800 mb-1">Maintenance</h2>
         <p className="text-xs text-gray-400 mb-3">
           One-time: link existing state/city returns to their federal parent (so they become sub-returns) and seed status history for older returns. Safe to run more than once.
         </p>
@@ -225,8 +225,8 @@ export default function Admin() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Add Staff Member</h2>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 className="text-sm font-bold text-brand-800 mb-3">Add Staff Member</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -260,10 +260,10 @@ export default function Admin() {
         </form>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b bg-gray-50">
+            <tr className="text-left text-gray-500 border-b">
               <th className="py-2 px-4">Name</th>
               <th className="py-2 px-4">Email</th>
               <th className="py-2 px-4">Role</th>

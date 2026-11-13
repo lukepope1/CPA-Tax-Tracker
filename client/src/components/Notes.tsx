@@ -197,8 +197,8 @@ export default function Notes({
   const count = notes?.length ?? 0;
   const hasDraft = textLength(draft) > 0;
 
-  const headingClass = compact ? "text-xs font-medium text-gray-500" : "text-lg font-semibold text-gray-800";
-  const wrapper = compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-100 shadow-sm";
+  const headingClass = compact ? "text-xs font-medium text-gray-500" : "text-lg font-bold text-brand-800";
+  const wrapper = compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-200 shadow-sm";
   const inner = compact ? "" : "border-t border-gray-100 px-4 py-3 space-y-3";
 
   return (

@@ -182,19 +182,19 @@ export default function Trash() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Trash</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Trash</h1>
         <p className="text-sm text-gray-500">
           Deleted items wait here before being permanently removed — restore anything that was deleted by mistake.
         </p>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">Deleted Clients</h2>
+        <h2 className="text-lg font-bold text-brand-800">Deleted Clients</h2>
         <p className="text-sm text-gray-500 mb-2">Deleted clients are kept for 90 days, then permanently removed.</p>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-500 border-b bg-gray-50">
+            <tr className="text-left text-gray-500 border-b">
               <th className="py-2 px-4">Name</th>
               <th className="py-2 px-4">Type</th>
               <th className="py-2 px-4">Deleted</th>
@@ -231,12 +231,12 @@ export default function Trash() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">Deleted Returns</h2>
+        <h2 className="text-lg font-bold text-brand-800">Deleted Returns</h2>
         <p className="text-sm text-gray-500 mb-2">Deleted returns are kept for 30 days, then permanently removed.</p>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4">Return</th>
                 <th className="py-2 px-4">Deleted</th>
@@ -280,12 +280,12 @@ export default function Trash() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">Deleted Tasks</h2>
+        <h2 className="text-lg font-bold text-brand-800">Deleted Tasks</h2>
         <p className="text-sm text-gray-500 mb-2">Deleted tasks are kept for 7 days, then permanently removed.</p>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Task</th>
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4">Due</th>
@@ -333,12 +333,12 @@ export default function Trash() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">Deleted Notes</h2>
+        <h2 className="text-lg font-bold text-brand-800">Deleted Notes</h2>
         <p className="text-sm text-gray-500 mb-2">Deleted notes are kept for 7 days, then permanently removed.</p>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Note</th>
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4">Return</th>

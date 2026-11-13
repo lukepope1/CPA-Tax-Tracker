@@ -528,8 +528,8 @@ export default function ClientDetail() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link to="/clients" className="text-xs text-gray-400 hover:text-brand-600">← Back to Clients</Link>
-          <h1 className="text-2xl font-semibold text-gray-800">{client.name}</h1>
+          <Link to="/clients" className="text-xs font-medium text-brand-600 hover:text-brand-800 hover:underline">← Back to Clients</Link>
+          <h1 className="text-2xl font-bold text-brand-800">{client.name}</h1>
           <p className="text-sm text-gray-500">
             {client.clientType && <>{client.clientType} &middot; </>}
             {client.clientCode && <>Code: {client.clientCode} &middot; </>}
@@ -550,7 +550,7 @@ export default function ClientDetail() {
       </div>
 
       {editing && (
-        <form onSubmit={saveClient} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={saveClient} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
             <select
@@ -641,7 +641,7 @@ export default function ClientDetail() {
       <TaskList scope={{ clientId: id! }} users={users ?? []} heading="Tasks" />
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-800">Engagements</h2>
+        <h2 className="text-lg font-bold text-brand-800">Engagements</h2>
         <button
           className="bg-brand-600 text-white text-sm font-medium rounded px-4 py-2 hover:bg-brand-700"
           onClick={() => setShowForm((v) => !v)}
@@ -651,7 +651,7 @@ export default function ClientDetail() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-wrap gap-4 items-end">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Form Type</label>
             <select className="border border-gray-300 rounded px-3 py-2 text-sm" value={formType} onChange={(e) => setFormType(e.target.value as FormType)}>
@@ -746,9 +746,9 @@ export default function ClientDetail() {
       <div className="space-y-4">
         {client.engagements && client.engagements.some((e) => !e.parentEngagementId) ? (
           client.engagements.filter((e) => !e.parentEngagementId).map((eng) => (
-            <div key={eng.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div key={eng.id} className="bg-white rounded-xl border border-gray-200 border-t-4 border-t-brand-500 shadow-sm p-4">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <h3 className="font-semibold text-gray-800">
+                <h3 className="font-heading text-lg font-bold text-brand-800">
                   {FORM_TYPE_LABELS[eng.formType]} &mdash; Tax Year {eng.taxYear}
                   <span className={`ml-2 text-xs font-medium px-2 py-0.5 rounded ${eng.jurisdiction && eng.jurisdiction !== "Federal" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"}`}>
                     {eng.jurisdiction && eng.jurisdiction !== "Federal" ? eng.jurisdiction : "Federal"}
@@ -976,11 +976,11 @@ export default function ClientDetail() {
 
       {isAdmin && (
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Billing History</h2>
+          <h2 className="text-lg font-bold text-brand-800 mb-2">Billing History</h2>
           {bills && bills.length > 0 ? (
             <div className="space-y-3">
               {bills.map((b) => (
-                <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div key={b.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="font-semibold text-gray-800">
                       {currency(b.amount)}{" "}

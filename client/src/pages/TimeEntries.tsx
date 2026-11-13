@@ -247,10 +247,10 @@ export default function TimeEntries() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-800">Time Entry</h1>
+      <h1 className="text-2xl font-bold text-brand-800">Time Entry</h1>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Timer</h2>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 className="text-sm font-bold text-brand-800 mb-3">Timer</h2>
         {!timer ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
@@ -323,7 +323,7 @@ export default function TimeEntries() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
         {isAdmin && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Staff</label>
@@ -412,10 +412,10 @@ export default function TimeEntries() {
         </div>
       </form>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b bg-gray-50">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-gray-700">
+            <h2 className="text-sm font-bold text-brand-800">
               {viewingId === user?.id ? "My Time Entries" : `${staffList?.find((u) => u.id === viewingId)?.name ?? ""}'s Time Entries`}
             </h2>
             {isAdmin && (

@@ -212,7 +212,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Dashboard</h1>
         <label className="flex items-center gap-2 text-sm text-gray-600">
           Viewing:
           <select
@@ -288,9 +288,9 @@ export default function Dashboard() {
         </div>
 
         {openCard && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-sm font-semibold text-gray-700">{CARD_TITLES[openCard]}</h2>
+              <h2 className="text-sm font-bold text-brand-800">{CARD_TITLES[openCard]}</h2>
               <div className="flex items-center gap-3">
                 {!drillLoading && drillItems.length > 0 && (
                   <span className="text-xs text-gray-500">
@@ -315,9 +315,9 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-gray-700">
+          <h2 className="text-sm font-bold text-brand-800">
             {isUnassigned
               ? "Unassigned Pool — returns not yet assigned"
               : `${isSelf ? "My" : `${viewedName}'s`} Inbox — returns in progress`}
@@ -432,8 +432,8 @@ export default function Dashboard() {
       />
 
       {summary && summary.engagementsByStatus.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Engagements by status</h2>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <h2 className="text-sm font-bold text-brand-800 mb-3">Engagements by status</h2>
           <div className="flex gap-4 flex-wrap">
             {summary.engagementsByStatus.map((s) => (
               <div key={s.status} className="text-sm">
@@ -446,14 +446,14 @@ export default function Dashboard() {
       )}
 
       {overdue && overdue.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <h2 className="text-sm font-semibold text-red-700 mb-3">Overdue ({overdue.length})</h2>
           <DueDateTable items={overdue} />
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Due in the next 14 days</h2>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 className="text-sm font-bold text-brand-800 mb-3">Due in the next 14 days</h2>
         {upcoming && upcoming.length > 0 ? (
           <DueDateTable items={upcoming} />
         ) : (
@@ -462,9 +462,9 @@ export default function Dashboard() {
       </div>
 
       {recentlyCompleted.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-gray-700">
+            <h2 className="text-sm font-bold text-brand-800">
               Recently completed
               <span className="ml-2 font-normal text-gray-400">last 7 days</span>
             </h2>
@@ -500,6 +500,15 @@ export default function Dashboard() {
   );
 }
 
+// Each stat card carries the colour of what it measures, keyed off its accent:
+// a tinted face, a solid bar down the left edge, and a matching label.
+const STAT_TONES: Record<string, { face: string; bar: string; label: string }> = {
+  "text-red-600": { face: "from-red-50", bar: "border-l-red-500", label: "text-red-700" },
+  "text-amber-600": { face: "from-amber-50", bar: "border-l-amber-500", label: "text-amber-700" },
+  "text-brand-600": { face: "from-brand-50", bar: "border-l-brand-500", label: "text-brand-700" },
+  "text-gray-800": { face: "from-accent-50", bar: "border-l-accent-400", label: "text-accent-700" },
+};
+
 function StatCard({
   label,
   value,
@@ -513,15 +522,16 @@ function StatCard({
   onClick?: () => void;
   open?: boolean;
 }) {
+  const tone = STAT_TONES[accent] ?? STAT_TONES["text-brand-600"];
   const body = (
     <>
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`text-xs font-bold uppercase tracking-wide ${tone.label}`}>{label}</p>
       <div className="mt-1 flex items-end justify-between gap-2">
-        <p className={`text-2xl font-semibold ${accent}`}>{value}</p>
+        <p className={`text-3xl font-bold ${accent}`}>{value}</p>
         {/* A faint ▸ beside the label didn't read as clickable; a worded cue
             in the brand colour does. */}
         {onClick && (
-          <span className="mb-1 text-xs font-medium text-brand-600 group-hover:underline">
+          <span className="mb-1 text-xs font-semibold text-brand-600 group-hover:underline">
             {open ? "Hide list ▴" : "View list ▾"}
           </span>
         )}
@@ -529,10 +539,10 @@ function StatCard({
     </>
   );
 
-  const base = "bg-white rounded-xl border shadow-sm p-4 transition-shadow";
+  const base = `bg-white bg-gradient-to-br ${tone.face} to-white rounded-xl border border-l-4 ${tone.bar} shadow-sm p-4 transition-shadow`;
 
   if (!onClick) {
-    return <div className={`${base} border-gray-100 hover:shadow`}>{body}</div>;
+    return <div className={`${base} border-y-gray-200 border-r-gray-200 hover:shadow-md`}>{body}</div>;
   }
 
   return (
@@ -541,8 +551,8 @@ function StatCard({
       onClick={onClick}
       aria-expanded={open}
       title="Click to see the deadlines behind this number"
-      className={`${base} group w-full text-left hover:shadow cursor-pointer hover:border-brand-200 ${
-        open ? "border-brand-300 ring-1 ring-brand-200" : "border-gray-100"
+      className={`${base} group w-full text-left hover:shadow-md cursor-pointer ${
+        open ? "border-y-brand-300 border-r-brand-300 ring-2 ring-brand-200" : "border-y-gray-200 border-r-gray-200"
       }`}
     >
       {body}

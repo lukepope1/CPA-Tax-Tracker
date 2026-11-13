@@ -302,7 +302,7 @@ export default function Clients() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-800">Clients</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Clients</h1>
         <div className="flex gap-2">
           <input
             ref={fileInputRef}
@@ -342,7 +342,7 @@ export default function Clients() {
       </p>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
             <select
@@ -449,10 +449,10 @@ export default function Clients() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-500 border-b bg-gray-50">
+            <tr className="text-gray-500 border-b">
               <SortTh field="name" label="Name" sort={sort} />
               <SortTh field="type" label="Type" sort={sort} className="whitespace-nowrap" />
               <SortTh field="code" label="Code" sort={sort} />
@@ -506,7 +506,7 @@ export default function Clients() {
             onSubmit={(e) => { e.preventDefault(); updateClient.mutate(edit); }}
           >
             <div className="md:col-span-2 flex items-center justify-between">
-              <h3 className="font-heading text-lg font-semibold text-gray-800">Edit Client</h3>
+              <h3 className="font-heading text-lg font-bold text-brand-800">Edit Client</h3>
               <button type="button" className="text-gray-400 hover:text-gray-700" onClick={() => setEdit(null)}>✕</button>
             </div>
 

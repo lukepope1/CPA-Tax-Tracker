@@ -270,7 +270,7 @@ export default function Billing() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800">Billing</h1>
+          <h1 className="text-2xl font-bold text-brand-800">Billing</h1>
           <p className="text-sm text-gray-500">
             {view === "outstanding"
               ? "Outstanding WIP (work in progress) — the standard value of logged time not yet billed, by client."
@@ -323,16 +323,16 @@ export default function Billing() {
 
       {view === "outstanding" && data && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs font-medium text-gray-500 uppercase">Total Outstanding WIP</div>
+          <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+            <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Total Outstanding WIP</div>
             <div className="text-2xl font-bold text-brand-600">{currency(wipTotals.wipValue)}</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs font-medium text-gray-500 uppercase">Unbilled Hours</div>
+          <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+            <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Unbilled Hours</div>
             <div className="text-2xl font-bold text-gray-800">{wipTotals.wipHours.toFixed(1)}</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs font-medium text-gray-500 uppercase">Billed to Date</div>
+          <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+            <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Billed to Date</div>
             <div className="text-2xl font-bold text-gray-800">{currency(wipTotals.billedTotal)}</div>
           </div>
         </div>
@@ -345,16 +345,16 @@ export default function Billing() {
         const totalRealization = totalStd > 0 ? totalBilled / totalStd : null;
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="text-xs font-medium text-gray-500 uppercase">Total Billed</div>
+            <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+              <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Total Billed</div>
               <div className="text-2xl font-bold text-brand-600">{currency(totalBilled)}</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="text-xs font-medium text-gray-500 uppercase">Total Hours Billed</div>
+            <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+              <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Total Hours Billed</div>
               <div className="text-2xl font-bold text-gray-800">{totalHours.toFixed(1)}</div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <div className="text-xs font-medium text-gray-500 uppercase">Total Realization</div>
+            <div className="bg-gradient-to-br from-brand-50 to-white rounded-xl border border-gray-200 border-l-4 border-l-brand-500 shadow-sm p-4">
+              <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Total Realization</div>
               <div className={`text-2xl font-bold ${realizationColor(totalRealization)}`}>
                 {totalRealization != null ? `${(totalRealization * 100).toFixed(0)}%` : "—"}
               </div>
@@ -364,10 +364,10 @@ export default function Billing() {
       })()}
 
       {view === "outstanding" && (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-500 border-b bg-gray-50">
+            <tr className="text-gray-500 border-b">
               <SortTh<WipRow> field="clientName" label="Client" sort={sort} />
               <SortTh<WipRow> field="clientType" label="Type" sort={sort} />
               <SortTh<WipRow> field="openEngagements" label="Open Returns" sort={sort} align="right" />
@@ -441,10 +441,10 @@ export default function Billing() {
       )}
 
       {view === "billed" && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Date</th>
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4 text-right">Amount</th>
@@ -498,7 +498,7 @@ export default function Billing() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-heading text-lg font-semibold text-gray-800">{detail.clientName}</h3>
+                <h3 className="font-heading text-lg font-bold text-brand-800">{detail.clientName}</h3>
                 <p className="text-xs text-gray-500">Outstanding WIP by return — bill each group separately, or everything at once</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">

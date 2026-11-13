@@ -109,7 +109,7 @@ export default function TaskList({
   const open = (tasks ?? []).filter((t) => !t.completed);
   const overdue = open.filter((t) => isOverdue(t.dueDate)).length;
 
-  const labelClass = compact ? "text-xs font-medium text-gray-500" : "text-sm font-semibold text-gray-700";
+  const labelClass = compact ? "text-xs font-medium text-gray-500" : "text-sm font-bold text-brand-800";
   const rowClass = compact ? "text-xs" : "text-sm";
 
   const addForm = (
@@ -179,7 +179,7 @@ export default function TaskList({
   );
 
   return (
-    <div className={compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-100 shadow-sm p-4"}>
+    <div className={compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-200 shadow-sm p-4"}>
       <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? "mb-1" : "mb-3"}`}>
         <div className={labelClass}>
           {heading}

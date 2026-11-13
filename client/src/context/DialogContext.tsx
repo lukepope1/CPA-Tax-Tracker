@@ -107,7 +107,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               if (el && (state.kind === "confirm" || state.kind === "choose")) el.focus();
             }}
           >
-            <h3 className="font-heading text-lg font-semibold text-gray-800">{state.opts.title}</h3>
+            <h3 className="font-heading text-lg font-bold text-brand-800">{state.opts.title}</h3>
             {state.opts.message && <p className="mt-1.5 whitespace-pre-line text-sm text-gray-500">{state.opts.message}</p>}
 
             {state.kind === "prompt" && (

@@ -261,7 +261,7 @@ export default function Reports() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-gray-800">Reports</h1>
+        <h1 className="text-2xl font-bold text-brand-800">Reports</h1>
         <button
           className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded px-4 py-2 hover:bg-gray-50"
           onClick={exportCurrent}
@@ -315,11 +315,11 @@ export default function Reports() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         {tab === "staff" && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Staff</th>
                 <th className="py-2 px-4 text-right">Hours</th>
                 <th className="py-2 px-4 text-right">Billable Hours</th>
@@ -346,7 +346,7 @@ export default function Reports() {
         {tab === "clients" && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4 text-right">Hours</th>
                 <th className="py-2 px-4 text-right">Value</th>
@@ -373,15 +373,15 @@ export default function Reports() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4">
                   <div>
-                    <div className="text-xs font-medium text-gray-500 uppercase">Non-Chargeable Hours</div>
+                    <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Non-Chargeable Hours</div>
                     <div className="text-2xl font-bold text-brand-600">{nonCharge.data.totalHours.toFixed(1)}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-500 uppercase">All Hours Logged</div>
+                    <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">All Hours Logged</div>
                     <div className="text-2xl font-bold text-gray-800">{nonCharge.data.loggedHours.toFixed(1)}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-medium text-gray-500 uppercase">Share of Total</div>
+                    <div className="text-xs font-bold text-brand-700 uppercase tracking-wide">Share of Total</div>
                     <div className="text-2xl font-bold text-gray-800">
                       {nonCharge.data.shareOfLogged != null
                         ? `${(nonCharge.data.shareOfLogged * 100).toFixed(0)}%`
@@ -391,7 +391,7 @@ export default function Reports() {
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-gray-500 border-b bg-gray-50">
+                    <tr className="text-left text-gray-500 border-b">
                       <th className="py-2 px-4">Category</th>
                       <th className="py-2 px-4">Who</th>
                       <th className="py-2 px-4 text-right">Hours</th>
@@ -420,7 +420,7 @@ export default function Reports() {
         {tab === "aging" && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b bg-gray-50">
+              <tr className="text-left text-gray-500 border-b">
                 <th className="py-2 px-4">Client</th>
                 <th className="py-2 px-4 text-right">0–30 days</th>
                 <th className="py-2 px-4 text-right">31–60</th>
@@ -480,7 +480,7 @@ export default function Reports() {
             )}
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <tr className="text-left text-gray-500 border-b">
                   <th className="py-2 px-4">Client</th>
                   <th className="py-2 px-4">Return</th>
                   <th className="py-2 px-4">Assigned To</th>
@@ -517,7 +517,7 @@ export default function Reports() {
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <tr className="text-left text-gray-500 border-b">
                   <th className="py-2 px-4">Status</th>
                   <th className="py-2 px-4 text-right">Avg Days</th>
                   <th className="py-2 px-4 text-right">Longest</th>
@@ -622,7 +622,7 @@ export default function Reports() {
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <tr className="text-left text-gray-500 border-b">
                   <th className="py-2 px-4">Staff</th>
                   <th className="py-2 px-4 text-right text-red-600">Overdue</th>
                   <th className="py-2 px-4 text-right">This Week</th>
@@ -695,7 +695,7 @@ export default function Reports() {
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b bg-gray-50">
+                <tr className="text-left text-gray-500 border-b">
                   <th className="py-2 px-4">Client</th>
                   <th className="py-2 px-4 text-right">Hours</th>
                   <th className="py-2 px-4 text-right">Std Value</th>

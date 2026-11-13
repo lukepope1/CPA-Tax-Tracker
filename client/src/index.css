@@ -45,12 +45,32 @@ main > * {
   animation: fadeIn 0.18s ease-out;
 }
 
-/* Refined table headers everywhere */
+/* Table headers: a tinted band with brand-coloured labels, so the header row
+   reads as a header rather than as one more line of grey text. Colour is set
+   on the cell itself, which beats the grey inherited from the row's classes. */
 thead th {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-weight: 600;
+  font-weight: 700;
+  color: #264040;
+}
+thead tr {
+  background-color: #e4eeed;
+}
+thead tr.border-b {
+  border-bottom-color: #b0c7c6;
+}
+/* Inset the first column so text doesn't sit flush against the tinted band;
+   cells with their own px- class keep theirs, so both stay aligned. */
+thead th:first-child,
+tbody td:first-child {
+  padding-left: 0.75rem;
+}
+
+/* Alternate row tint for long tables, for easier scanning across columns. */
+tbody tr:nth-child(even) {
+  background-color: #f8fafa;
 }
 
 /* Tabular numerals so dollar/hour columns align vertically */
