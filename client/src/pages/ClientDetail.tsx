@@ -21,7 +21,8 @@ import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { formatPhone } from "../lib/format";
-import { Loading } from "../components/ui";
+import { Loading, statusClasses } from "../components/ui";
+import { CalendarDays, Mail, Pencil, Phone, UserRound, X } from "lucide-react";
 import TaskList from "../components/TaskList";
 import Notes from "../components/Notes";
 
@@ -48,6 +49,31 @@ function yearOptions() {
   const years: number[] = [];
   for (let y = current + 1; y >= current - 5; y--) years.push(y);
   return years;
+}
+
+// Up to two initials for the client's avatar: "Impact Marketplace, LLC" -> "IM",
+// "Pope, Luke" -> "PL". Legal suffixes don't count as a word.
+function clientInitials(name: string) {
+  const words = name
+    .replace(/[,.]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w && !/^(llc|inc|corp|co|ltd|lp|llp|pc|pllc|the)$/i.test(w));
+  return (words.slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+}
+
+// A colour per kind of client, so the type badge is recognisable at a glance.
+function clientTypeTone(type: string) {
+  const tones: Record<string, string> = {
+    Individual: "bg-sky-100 text-sky-800 ring-sky-300",
+    "Sch. E": "bg-cyan-100 text-cyan-800 ring-cyan-300",
+    Corporation: "bg-brand-50 text-brand-800 ring-brand-200",
+    "S Corporation": "bg-teal-100 text-teal-800 ring-teal-300",
+    Partnership: "bg-violet-100 text-violet-800 ring-violet-300",
+    Trust: "bg-amber-100 text-amber-800 ring-amber-300",
+    Estate: "bg-orange-100 text-orange-800 ring-orange-300",
+    "Non-Profit": "bg-green-100 text-green-800 ring-green-300",
+  };
+  return tones[type] ?? "bg-gray-100 text-gray-700 ring-gray-300";
 }
 
 function formatDate(d: string) {
@@ -498,7 +524,7 @@ export default function ClientDetail() {
           </span>
           <div className="flex items-center gap-2">
             <select
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
+              className={`rounded-full border-0 px-3 py-1 text-xs font-semibold cursor-pointer ${statusClasses(child.status)}`}
               value={child.status}
               onChange={(e) => updateEngagement.mutate({ engagementId: child.id, data: { status: e.target.value as EngagementStatus } })}
             >
@@ -526,27 +552,75 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <Link to="/clients" className="text-xs font-medium text-brand-600 hover:text-brand-800 hover:underline">← Back to Clients</Link>
-          <h1 className="text-2xl font-bold text-brand-800">{client.name}</h1>
-          <p className="text-sm text-gray-500">
-            {client.clientType && <>{client.clientType} &middot; </>}
-            {client.clientCode && <>Code: {client.clientCode} &middot; </>}
-            {client.contactName && <>{client.contactName} &middot; </>}
-            {client.contactEmail && <>{client.contactEmail} &middot; </>}
-            {client.contactPhone && (
-              <>{client.contactPhone.replace(/\D/g, "").length === 10 ? formatPhone(client.contactPhone) : client.contactPhone} &middot; </>
-            )}
-            FYE: {MONTHS[client.fiscalYearEndMonth - 1]} {client.fiscalYearEndDay}
-          </p>
+      <div>
+        <Link to="/clients" className="text-xs font-medium text-brand-600 hover:text-brand-800 hover:underline">← Back to Clients</Link>
+        {/* A profile header rather than a line of dot-separated text: who the
+            client is at a glance, with contact details you can act on. */}
+        <div className="mt-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-brand-600 via-brand-500 to-accent-400" aria-hidden="true" />
+          <div className="flex flex-wrap items-start gap-4 p-4 sm:p-5">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 font-heading text-xl font-bold text-white shadow-sm"
+              aria-hidden="true"
+            >
+              {clientInitials(client.name)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold text-brand-800">{client.name}</h1>
+                {client.clientType && (
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${clientTypeTone(client.clientType)}`}>
+                    {client.clientType}
+                  </span>
+                )}
+                {client.clientCode && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 font-mono text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-300">
+                    #{client.clientCode}
+                  </span>
+                )}
+              </div>
+              {client.parent && (
+                <p className="mt-0.5 text-sm text-gray-600">
+                  Part of{" "}
+                  <Link to={`/clients/${client.parent.id}`} className="font-medium text-brand-600 hover:underline">
+                    {client.parent.name}
+                  </Link>
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-700">
+                {client.contactName && (
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <UserRound className="h-4 w-4 text-brand-500" aria-hidden="true" />
+                    {client.contactName}
+                  </span>
+                )}
+                {client.contactEmail && (
+                  <a href={`mailto:${client.contactEmail}`} className="inline-flex min-w-0 items-center gap-1.5 break-all text-brand-700 hover:underline">
+                    <Mail className="h-4 w-4 text-brand-500" aria-hidden="true" />
+                    {client.contactEmail}
+                  </a>
+                )}
+                {client.contactPhone && (
+                  <a href={`tel:${client.contactPhone.replace(/[^\d+]/g, "")}`} className="inline-flex items-center gap-1.5 whitespace-nowrap text-brand-700 hover:underline">
+                    <Phone className="h-4 w-4 text-brand-500" aria-hidden="true" />
+                    {client.contactPhone.replace(/\D/g, "").length === 10 ? formatPhone(client.contactPhone) : client.contactPhone}
+                  </a>
+                )}
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                  <CalendarDays className="h-4 w-4 text-brand-500" aria-hidden="true" />
+                  FYE {MONTHS[client.fiscalYearEndMonth - 1]} {client.fiscalYearEndDay}
+                </span>
+              </div>
+            </div>
+            <button
+              className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              onClick={() => (editing ? setEditing(false) : startEditClient())}
+            >
+              {editing ? <X className="h-4 w-4" aria-hidden="true" /> : <Pencil className="h-4 w-4" aria-hidden="true" />}
+              {editing ? "Cancel" : "Edit Client"}
+            </button>
+          </div>
         </div>
-        <button
-          className="shrink-0 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          onClick={() => (editing ? setEditing(false) : startEditClient())}
-        >
-          {editing ? "Cancel" : "Edit Client"}
-        </button>
       </div>
 
       {editing && (
@@ -759,7 +833,7 @@ export default function ClientDetail() {
                     checkbox and Delete past the card edge. */}
                 <div className="flex flex-wrap items-center gap-2">
                   <select
-                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                    className={`rounded-full border-0 px-3 py-1 text-xs font-semibold cursor-pointer ${statusClasses(eng.status)}`}
                     value={eng.status}
                     onChange={(e) => handleStatusChange(eng, e.target.value as EngagementStatus)}
                   >

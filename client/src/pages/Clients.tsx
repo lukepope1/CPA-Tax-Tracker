@@ -8,6 +8,7 @@ import { formatPhone } from "../lib/format";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
+import { Users } from "lucide-react";
 
 interface ImportRow {
   name?: string;
@@ -492,7 +493,7 @@ export default function Clients() {
               );
             })}
             {clients && clients.length === 0 && (
-              <tr><td colSpan={8}><EmptyState title="No clients yet" hint="Add a client or import from Excel to get started." /></td></tr>
+              <tr><td colSpan={8}><EmptyState icon={Users} title="No clients yet" hint="Add a client or import from Excel to get started." /></td></tr>
             )}
           </tbody>
         </table>

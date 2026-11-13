@@ -1,21 +1,32 @@
 import { FormEvent, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  BarChart3,
+  Building2,
+  CalendarClock,
+  Clock,
+  LayoutDashboard,
+  Receipt,
+  Settings,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
 
 const baseNav = [
-  { to: "/", label: "Dashboard" },
-  { to: "/clients", label: "Clients" },
-  { to: "/due-dates", label: "Due Dates" },
-  { to: "/time", label: "Time Entry" },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/clients", label: "Clients", icon: Users },
+  { to: "/due-dates", label: "Due Dates", icon: CalendarClock },
+  { to: "/time", label: "Time Entry", icon: Clock },
 ];
 
 const adminNav = [
-  { to: "/firm", label: "Firm" },
-  { to: "/billing", label: "Billing" },
-  { to: "/reports", label: "Reports" },
-  { to: "/admin", label: "Admin" },
+  { to: "/firm", label: "Firm", icon: Building2 },
+  { to: "/billing", label: "Billing", icon: Receipt },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/admin", label: "Admin", icon: Settings },
 ];
 
 export default function Layout() {
@@ -24,7 +35,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const isAdmin = user?.role === "ADMIN";
 
-  const items = [...baseNav, ...(isAdmin ? adminNav : []), { to: "/trash", label: "Trash" }];
+  const items = [...baseNav, ...(isAdmin ? adminNav : []), { to: "/trash", label: "Trash", icon: Trash2 }];
 
   const initials = (user?.name ?? "?")
     .split(" ")
@@ -42,7 +53,7 @@ export default function Layout() {
   }
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
-    `whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+    `inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
       isActive ? "bg-white text-brand-800 shadow-sm" : "text-brand-100 hover:bg-white/10 hover:text-white"
     }`;
 
@@ -102,6 +113,9 @@ export default function Layout() {
             <nav className="hidden lg:flex gap-1">
               {items.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass} end={item.to === "/"}>
+                  {/* Nine labelled links only just fit at 1024px; icons join
+                      them once the screen is wide enough to carry both. */}
+                  <item.icon className="hidden 2xl:inline h-4 w-4" aria-hidden="true" />
                   {item.label}
                 </NavLink>
               ))}
@@ -151,6 +165,7 @@ export default function Layout() {
                   end={item.to === "/"}
                   onClick={() => setMenuOpen(false)}
                 >
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
                   {item.label}
                 </NavLink>
               ))}

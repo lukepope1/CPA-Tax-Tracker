@@ -6,6 +6,7 @@ import { Note } from "../components/Notes";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState } from "../components/ui";
+import { Trash2 } from "lucide-react";
 
 const RETENTION_DAYS = 90;
 
@@ -223,7 +224,7 @@ export default function Trash() {
               </tr>
             ))}
             {clients && clients.length === 0 && (
-              <tr><td colSpan={5}><EmptyState title="No deleted clients" hint="Deleted clients appear here for 90 days." /></td></tr>
+              <tr><td colSpan={5}><EmptyState icon={Trash2} title="No deleted clients" hint="Deleted clients appear here for 90 days." /></td></tr>
             )}
           </tbody>
         </table>
@@ -272,7 +273,7 @@ export default function Trash() {
                 </tr>
               ))}
               {trashedReturns && trashedReturns.length === 0 && (
-                <tr><td colSpan={5}><EmptyState title="No deleted returns" hint="Deleted returns appear here for 30 days." /></td></tr>
+                <tr><td colSpan={5}><EmptyState icon={Trash2} title="No deleted returns" hint="Deleted returns appear here for 30 days." /></td></tr>
               )}
             </tbody>
           </table>
@@ -325,7 +326,7 @@ export default function Trash() {
                 </tr>
               ))}
               {trashedTasks && trashedTasks.length === 0 && (
-                <tr><td colSpan={6}><EmptyState title="No deleted tasks" hint="Deleted tasks appear here for 7 days." /></td></tr>
+                <tr><td colSpan={6}><EmptyState icon={Trash2} title="No deleted tasks" hint="Deleted tasks appear here for 7 days." /></td></tr>
               )}
             </tbody>
           </table>
@@ -377,7 +378,7 @@ export default function Trash() {
                 </tr>
               ))}
               {trashedNotes && trashedNotes.length === 0 && (
-                <tr><td colSpan={6}><EmptyState title="No deleted notes" hint="Deleted notes appear here for 7 days." /></td></tr>
+                <tr><td colSpan={6}><EmptyState icon={Trash2} title="No deleted notes" hint="Deleted notes appear here for 7 days." /></td></tr>
               )}
             </tbody>
           </table>

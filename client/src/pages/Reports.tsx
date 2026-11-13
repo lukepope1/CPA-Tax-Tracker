@@ -5,6 +5,8 @@ import * as XLSX from "xlsx";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 import { Loading, EmptyState } from "../components/ui";
+import { BarChart3 } from "lucide-react";
+import { CHART, ChartCard, HBarChart } from "../components/Charts";
 import {
   ENGAGEMENT_STATUS_LABELS,
   EngagementStatus,
@@ -315,6 +317,66 @@ export default function Reports() {
         )}
       </div>
 
+      {/* A chart above the table for the tabs where the shape matters more than
+          the exact figures. The table below still has every number. */}
+      {tab === "staff" && staff.data && staff.data.length > 0 && (
+        <ChartCard title="Hours by staff" subtitle="billable vs. non-billable" height={Math.max(150, staff.data.length * 44 + 40)}>
+          <HBarChart
+            stacked
+            data={staff.data.map((r) => ({
+              label: r.name,
+              billable: +r.billableHours.toFixed(1),
+              other: +(r.hours - r.billableHours).toFixed(1),
+            }))}
+            bars={[
+              { key: "billable", name: "Billable", color: CHART.brand },
+              { key: "other", name: "Non-billable", color: CHART.accent },
+            ]}
+            valueFormat={(v) => `${v} h`}
+          />
+        </ChartCard>
+      )}
+      {tab === "clients" && clients.data && clients.data.length > 0 && (
+        <ChartCard
+          title="Top clients by value"
+          subtitle={clients.data.length > 10 ? `top 10 of ${clients.data.length}` : undefined}
+          height={Math.max(150, Math.min(10, clients.data.length) * 34 + 20)}
+        >
+          <HBarChart
+            data={[...clients.data]
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 10)
+              .map((r) => ({ label: r.name, value: +r.value.toFixed(2) }))}
+            bars={[{ key: "value", name: "Value", color: CHART.brand }]}
+            valueFormat={(v) => currency(v)}
+          />
+        </ChartCard>
+      )}
+      {tab === "nonCharge" && nonCharge.data && nonCharge.data.categories.length > 0 && (
+        <ChartCard title="Non-chargeable hours by category" height={Math.max(150, nonCharge.data.categories.length * 34 + 20)}>
+          <HBarChart
+            data={nonCharge.data.categories.map((c) => ({ label: c.category, hours: +c.hours.toFixed(1) }))}
+            bars={[{ key: "hours", name: "Hours", color: CHART.accent }]}
+            valueFormat={(v) => `${v} h`}
+          />
+        </ChartCard>
+      )}
+      {tab === "aging" && aging.data && aging.data.length > 0 && (
+        <ChartCard title="Unbilled WIP by age" subtitle="older work is harder to collect" height={200}>
+          <HBarChart
+            data={[
+              { label: "0–30 days", value: aging.data.reduce((n, r) => n + r.d0_30, 0) },
+              { label: "31–60 days", value: aging.data.reduce((n, r) => n + r.d31_60, 0) },
+              { label: "61–90 days", value: aging.data.reduce((n, r) => n + r.d61_90, 0) },
+              { label: "90+ days", value: aging.data.reduce((n, r) => n + r.d90plus, 0) },
+            ]}
+            bars={[{ key: "value", name: "WIP", color: CHART.brand }]}
+            rowColors={[CHART.brand, CHART.accent, CHART.amber, CHART.red]}
+            valueFormat={(v) => currency(v)}
+          />
+        </ChartCard>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
         {tab === "staff" && (
           <table className="w-full text-sm">
@@ -338,7 +400,7 @@ export default function Reports() {
                   <td className="py-2 px-4 text-right font-medium">{currency(r.value)}</td>
                 </tr>
               ))}
-              {staff.data?.length === 0 && <tr><td colSpan={5}><EmptyState title="No time in this range" /></td></tr>}
+              {staff.data?.length === 0 && <tr><td colSpan={5}><EmptyState icon={BarChart3} title="No time in this range" /></td></tr>}
             </tbody>
           </table>
         )}
@@ -361,7 +423,7 @@ export default function Reports() {
                   <td className="py-2 px-4 text-right font-medium">{currency(r.value)}</td>
                 </tr>
               ))}
-              {clients.data?.length === 0 && <tr><td colSpan={3}><EmptyState title="No time in this range" /></td></tr>}
+              {clients.data?.length === 0 && <tr><td colSpan={3}><EmptyState icon={BarChart3} title="No time in this range" /></td></tr>}
             </tbody>
           </table>
         )}
@@ -408,7 +470,7 @@ export default function Reports() {
                       </tr>
                     ))}
                     {nonCharge.data.categories.length === 0 && (
-                      <tr><td colSpan={3}><EmptyState title="No non-chargeable time in this range" hint="Log it from the Time Entry page." /></td></tr>
+                      <tr><td colSpan={3}><EmptyState icon={BarChart3} title="No non-chargeable time in this range" hint="Log it from the Time Entry page." /></td></tr>
                     )}
                   </tbody>
                 </table>
@@ -441,7 +503,7 @@ export default function Reports() {
                   <td className="py-2 px-4 text-right font-semibold">{currency(r.total)}</td>
                 </tr>
               ))}
-              {aging.data?.length === 0 && <tr><td colSpan={6}><EmptyState title="No outstanding WIP" /></td></tr>}
+              {aging.data?.length === 0 && <tr><td colSpan={6}><EmptyState icon={BarChart3} title="No outstanding WIP" /></td></tr>}
             </tbody>
             {aging.data && aging.data.length > 0 && (() => {
               const t = aging.data.reduce(
@@ -502,7 +564,7 @@ export default function Reports() {
                   </tr>
                 ))}
                 {turnaround.data?.rows.length === 0 && (
-                  <tr><td colSpan={6}><EmptyState title="No completed returns yet" hint="Turnaround appears once returns are marked Completed." /></td></tr>
+                  <tr><td colSpan={6}><EmptyState icon={BarChart3} title="No completed returns yet" hint="Turnaround appears once returns are marked Completed." /></td></tr>
                 )}
               </tbody>
             </table>
@@ -607,7 +669,7 @@ export default function Reports() {
                   );
                 })}
                 {status.data?.length === 0 && (
-                  <tr><td colSpan={5}><EmptyState title="No status history yet" hint="This fills in as returns move through their stages." /></td></tr>
+                  <tr><td colSpan={5}><EmptyState icon={BarChart3} title="No status history yet" hint="This fills in as returns move through their stages." /></td></tr>
                 )}
               </tbody>
             </table>
@@ -650,7 +712,7 @@ export default function Reports() {
                   </tr>
                 ))}
                 {capacity.data?.length === 0 && (
-                  <tr><td colSpan={9}><EmptyState title="No open returns" /></td></tr>
+                  <tr><td colSpan={9}><EmptyState icon={BarChart3} title="No open returns" /></td></tr>
                 )}
               </tbody>
               {capacity.data && capacity.data.length > 0 && (() => {
@@ -726,7 +788,7 @@ export default function Reports() {
                     <td className="py-2 px-4 text-right">{r.effectiveRate != null ? currency(r.effectiveRate) : "—"}</td>
                   </tr>
                 ))}
-                {profit.data?.length === 0 && <tr><td colSpan={7}><EmptyState title="No activity in this range" /></td></tr>}
+                {profit.data?.length === 0 && <tr><td colSpan={7}><EmptyState icon={BarChart3} title="No activity in this range" /></td></tr>}
               </tbody>
               {profit.data && profit.data.length > 0 && (() => {
                 const t = profit.data.reduce(

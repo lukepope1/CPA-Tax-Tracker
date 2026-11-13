@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
 import { FormType, engagementLabel } from "../lib/types";
+import { Receipt } from "lucide-react";
 
 interface WipRow {
   clientId: string;
@@ -422,7 +423,7 @@ export default function Billing() {
               </tr>
             ))}
             {data && data.rows.length === 0 && (
-              <tr><td colSpan={7}><EmptyState title="No outstanding WIP" hint="All logged time has been billed." /></td></tr>
+              <tr><td colSpan={7}><EmptyState icon={Receipt} title="No outstanding WIP" hint="All logged time has been billed." /></td></tr>
             )}
           </tbody>
           {data && data.rows.length > 0 && (
@@ -480,7 +481,7 @@ export default function Billing() {
                 </tr>
               ))}
               {history && billRows.length === 0 && (
-                <tr><td colSpan={8}><EmptyState title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
+                <tr><td colSpan={8}><EmptyState icon={Receipt} title="No bills yet" hint="Bills you create from the Outstanding view appear here." /></td></tr>
               )}
             </tbody>
           </table>
@@ -565,7 +566,7 @@ export default function Billing() {
                   </div>
                 </>
               ) : (
-                <EmptyState title="No unbilled time" />
+                <EmptyState icon={Receipt} title="No unbilled time" />
               )}
             </div>
           </div>

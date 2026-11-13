@@ -4,7 +4,18 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useDialog } from "../context/DialogContext";
-import { Loading, statusClasses, useSort } from "../components/ui";
+import { DueChip, EmptyState, Loading, Skeleton, STATUS_FILL, statusClasses, useSort } from "../components/ui";
+import {
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  Clock,
+  Inbox,
+  Layers,
+  RotateCcw,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import TaskList from "../components/TaskList";
 import { daysPastDue, isOverdue } from "../lib/dates";
 import {
@@ -265,26 +276,29 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             label="Overdue"
-            value={summary?.overdueCount ?? "-"}
+            value={summary?.overdueCount}
             accent="text-red-600"
+            icon={TriangleAlert}
             open={openCard === "overdue"}
             onClick={() => setOpenCard(openCard === "overdue" ? null : "overdue")}
           />
           <StatCard
             label="Due in 7 days"
-            value={summary?.dueThisWeek ?? "-"}
+            value={summary?.dueThisWeek}
             accent="text-amber-600"
+            icon={CalendarClock}
             open={openCard === "week"}
             onClick={() => setOpenCard(openCard === "week" ? null : "week")}
           />
           <StatCard
             label="Due in 30 days"
-            value={summary?.dueThisMonth ?? "-"}
+            value={summary?.dueThisMonth}
             accent="text-brand-600"
+            icon={CalendarDays}
             open={openCard === "month"}
             onClick={() => setOpenCard(openCard === "month" ? null : "month")}
           />
-          <StatCard label="Hours this week" value={summary != null ? summary.hoursThisWeek.toFixed(1) : "-"} accent="text-gray-800" />
+          <StatCard label="Hours this week" value={summary?.hoursThisWeek.toFixed(1)} accent="text-gray-800" icon={Clock} />
         </div>
 
         {openCard && (
@@ -317,7 +331,8 @@ export default function Dashboard() {
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-brand-800">
+          <h2 className="inline-flex items-center gap-2 text-sm font-bold text-brand-800">
+            <Inbox className="h-4 w-4" aria-hidden="true" />
             {isUnassigned
               ? "Unassigned Pool — returns not yet assigned"
               : `${isSelf ? "My" : `${viewedName}'s`} Inbox — returns in progress`}
@@ -330,7 +345,9 @@ export default function Dashboard() {
             </button>
           )}
         </div>
-        {inbox && inbox.length > 0 ? (
+        {inbox === undefined ? (
+          <SkeletonRows />
+        ) : inbox.length > 0 ? (
           <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -347,7 +364,6 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {displayed.map((item, idx) => {
-                const overdueItem = isOverdue(item.nextDueDate);
                 return (
                   <tr
                     key={item.id}
@@ -369,7 +385,7 @@ export default function Dashboard() {
                     </td>
                     <td className="py-2 pr-4 whitespace-nowrap">
                       <select
-                        className={`rounded-full border-0 px-3 py-1 text-xs font-medium cursor-pointer ${statusClasses(item.status)}`}
+                        className={`rounded-full border-0 px-3 py-1 text-xs font-semibold cursor-pointer ${statusClasses(item.status)}`}
                         value={item.status}
                         onChange={(e) => handleStatusChange(item, e.target.value as EngagementStatus)}
                       >
@@ -407,10 +423,17 @@ export default function Dashboard() {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
-                    <td className={`py-2 pr-4 whitespace-nowrap ${overdueItem ? "text-red-700 font-medium" : ""}`}>
-                      {item.nextDueDate
-                        ? `${formatDate(item.nextDueDate)}${item.nextDueType ? ` (${DUE_DATE_TYPE_LABELS[item.nextDueType]})` : ""}`
-                        : "—"}
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {item.nextDueDate ? (
+                        <span className="inline-flex flex-col items-start gap-0.5">
+                          <DueChip date={item.nextDueDate} />
+                          {item.nextDueType && (
+                            <span className="text-xs text-gray-500">{DUE_DATE_TYPE_LABELS[item.nextDueType]}</span>
+                          )}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 );
@@ -419,7 +442,12 @@ export default function Dashboard() {
           </table>
           </div>
         ) : (
-          <p className="text-sm text-gray-500">No returns currently assigned and in progress.</p>
+          <EmptyState
+            compact
+            icon={Inbox}
+            title={isUnassigned ? "Nothing waiting in the pool" : "No returns in progress"}
+            hint={isUnassigned ? "Every active return has someone on it." : "Returns assigned here show up once work starts."}
+          />
         )}
       </div>
 
@@ -432,39 +460,38 @@ export default function Dashboard() {
       />
 
       {summary && summary.engagementsByStatus.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-          <h2 className="text-sm font-bold text-brand-800 mb-3">Engagements by status</h2>
-          <div className="flex gap-4 flex-wrap">
-            {summary.engagementsByStatus.map((s) => (
-              <div key={s.status} className="text-sm">
-                <span className="font-medium text-gray-800">{s.count}</span>{" "}
-                <span className="text-gray-500">{ENGAGEMENT_STATUS_LABELS[s.status]}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <StatusPipeline rows={summary.engagementsByStatus} />
       )}
 
       {overdue && overdue.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-          <h2 className="text-sm font-semibold text-red-700 mb-3">Overdue ({overdue.length})</h2>
+          <h2 className="mb-3 inline-flex items-center gap-2 text-sm font-bold text-red-700">
+            <TriangleAlert className="h-4 w-4" aria-hidden="true" />
+            Overdue ({overdue.length})
+          </h2>
           <DueDateTable items={overdue} />
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <h2 className="text-sm font-bold text-brand-800 mb-3">Due in the next 14 days</h2>
-        {upcoming && upcoming.length > 0 ? (
+        <h2 className="mb-3 inline-flex items-center gap-2 text-sm font-bold text-brand-800">
+          <CalendarClock className="h-4 w-4" aria-hidden="true" />
+          Due in the next 14 days
+        </h2>
+        {upcoming === undefined ? (
+          <SkeletonRows />
+        ) : upcoming.length > 0 ? (
           <DueDateTable items={upcoming} />
         ) : (
-          <p className="text-sm text-gray-500">Nothing due in the next 14 days.</p>
+          <EmptyState compact icon={CalendarCheck} title="Nothing due in the next 14 days" hint="You're clear for the next two weeks." />
         )}
       </div>
 
       {recentlyCompleted.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-bold text-brand-800">
+            <h2 className="inline-flex items-center gap-2 text-sm font-bold text-brand-800">
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
               Recently completed
               <span className="ml-2 font-normal text-gray-400">last 7 days</span>
             </h2>
@@ -513,21 +540,32 @@ function StatCard({
   label,
   value,
   accent,
+  icon: Icon,
   onClick,
   open = false,
 }: {
   label: string;
-  value: string | number;
+  /** undefined while loading — shown as a placeholder, not as "–", which read
+   *  like missing data. */
+  value: string | number | undefined;
   accent: string;
+  icon?: LucideIcon;
   onClick?: () => void;
   open?: boolean;
 }) {
   const tone = STAT_TONES[accent] ?? STAT_TONES["text-brand-600"];
   const body = (
     <>
-      <p className={`text-xs font-bold uppercase tracking-wide ${tone.label}`}>{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-xs font-bold uppercase tracking-wide ${tone.label}`}>{label}</p>
+        {Icon && <Icon className={`h-5 w-5 shrink-0 opacity-80 ${tone.label}`} aria-hidden="true" />}
+      </div>
       <div className="mt-1 flex items-end justify-between gap-2">
-        <p className={`text-3xl font-bold ${accent}`}>{value}</p>
+        {value === undefined ? (
+          <Skeleton className="my-1.5 h-7 w-14" />
+        ) : (
+          <p className={`text-3xl font-bold ${accent}`}>{value}</p>
+        )}
         {/* A faint ▸ beside the label didn't read as clickable; a worded cue
             in the brand colour does. */}
         {onClick && (
@@ -560,6 +598,77 @@ function StatCard({
   );
 }
 
+/**
+ * The whole pipeline as one bar: a segment per status, sized by how many
+ * returns sit in it and ordered by the workflow, so it reads left-to-right from
+ * not-started to done. Each segment and legend entry opens Due Dates filtered to
+ * returns in that status.
+ */
+function StatusPipeline({ rows }: { rows: { status: EngagementStatus; count: number }[] }) {
+  const byStatus = new Map(rows.map((r) => [r.status, r.count]));
+  const ordered = ENGAGEMENT_STATUSES.filter((s) => (byStatus.get(s) ?? 0) > 0).map((s) => ({
+    status: s,
+    count: byStatus.get(s)!,
+  }));
+  const total = ordered.reduce((n, r) => n + r.count, 0);
+  if (total === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 className="inline-flex items-center gap-2 text-sm font-bold text-brand-800">
+          <Layers className="h-4 w-4" aria-hidden="true" />
+          Pipeline
+        </h2>
+        <span className="text-xs text-gray-500">
+          {total} active return{total === 1 ? "" : "s"} · click a stage to see its deadlines
+        </span>
+      </div>
+      <div className="flex h-4 w-full overflow-hidden rounded-full bg-gray-100" role="img" aria-label="Returns by status">
+        {ordered.map((r) => (
+          <Link
+            key={r.status}
+            to={`/due-dates?status=${r.status}`}
+            className={`${STATUS_FILL[r.status]} h-full transition-opacity hover:opacity-80 border-r-2 border-white last:border-r-0`}
+            style={{ width: `${(r.count / total) * 100}%` }}
+            title={`${ENGAGEMENT_STATUS_LABELS[r.status]}: ${r.count}`}
+          />
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+        {ordered.map((r) => (
+          <Link
+            key={r.status}
+            to={`/due-dates?status=${r.status}`}
+            className="group inline-flex items-center gap-1.5 text-sm"
+          >
+            <span className={`h-2.5 w-2.5 rounded-full ${STATUS_FILL[r.status]}`} aria-hidden="true" />
+            <span className="font-bold text-gray-900">{r.count}</span>
+            <span className="text-gray-600 group-hover:text-brand-700 group-hover:underline">
+              {ENGAGEMENT_STATUS_LABELS[r.status]}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Placeholder table rows while a list loads, so it doesn't flash "empty". */
+function SkeletonRows({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2.5 py-1" aria-label="Loading">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DueDateTable({ items }: { items: DueDate[] }) {
   return (
     <div className="overflow-x-auto">
@@ -576,7 +685,7 @@ function DueDateTable({ items }: { items: DueDate[] }) {
       <tbody>
         {items.map((d) => (
           <tr key={d.id} className="border-b last:border-0">
-            <td className="py-2 pr-4 whitespace-nowrap">{formatDate(d.dueDate)}</td>
+            <td className="py-2 pr-4 whitespace-nowrap"><DueChip date={d.dueDate} /></td>
             <td className="py-2 pr-4">
               <Link to={`/clients/${d.engagement?.client?.id}`} className="text-brand-600 hover:underline">
                 {d.engagement?.client?.name}

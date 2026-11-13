@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useDialog } from "../context/DialogContext";
 import { Loading, EmptyState, useSort, SortTh } from "../components/ui";
+import { Clock } from "lucide-react";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -493,7 +494,7 @@ export default function TimeEntries() {
               );
             })}
             {entries && entries.length === 0 && (
-              <tr><td colSpan={9}><EmptyState title="No time entries yet" hint="Log time above or start the timer." /></td></tr>
+              <tr><td colSpan={9}><EmptyState icon={Clock} title="No time entries yet" hint="Log time above or start the timer." /></td></tr>
             )}
           </tbody>
         </table>

@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { ENGAGEMENT_STATUSES, FORM_TYPE_LABELS, FormType } from "../lib/types";
-import { Loading, StatusBadge } from "../components/ui";
+import { ENGAGEMENT_STATUS_LABELS, ENGAGEMENT_STATUSES, FORM_TYPE_LABELS, FormType } from "../lib/types";
+import { EmptyState, Loading, STATUS_HEX, StatusBadge } from "../components/ui";
+import { CHART, ChartCard, Donut, HBarChart } from "../components/Charts";
+import { ResponsiveContainer } from "recharts";
+import { BarChart3 } from "lucide-react";
 
 interface FirmSummary {
   totalReturns: number;
@@ -33,6 +36,11 @@ export default function FirmDashboard() {
     queryFn: async () =>
       (await api.get("/billing/firm", { params: taxYear ? { taxYear } : undefined })).data,
   });
+
+  const typeRows = FORM_ORDER.filter((ft) => data?.byType?.[ft]).map((ft) => ({
+    label: FORM_TYPE_LABELS[ft],
+    count: data!.byType[ft],
+  }));
 
   const completed = data?.byStatus?.COMPLETED ?? 0;
   const outstanding = data ? data.totalReturns - completed : 0;
@@ -95,37 +103,41 @@ export default function FirmDashboard() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status mix: a donut in the same workflow colours as the status
+                pills, with the counts beside it so nothing needs a hover. */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h2 className="text-sm font-bold text-brand-800 mb-3">Returns by Type</h2>
-              <table className="w-full text-sm">
-                <tbody>
-                  {FORM_ORDER.filter((ft) => data.byType?.[ft]).map((ft) => (
-                    <tr key={ft} className="border-b last:border-0">
-                      <td className="py-2 text-gray-700">{FORM_TYPE_LABELS[ft]}</td>
-                      <td className="py-2 text-right font-medium text-gray-800">{data.byType[ft]}</td>
-                    </tr>
-                  ))}
-                  {Object.keys(data.byType ?? {}).length === 0 && (
-                    <tr><td className="py-2 text-gray-500">No returns.</td></tr>
-                  )}
-                </tbody>
-              </table>
+              <h2 className="text-sm font-bold text-brand-800 mb-2">Returns by Status</h2>
+              {data.totalReturns === 0 ? (
+                <EmptyState icon={BarChart3} title="No returns yet" />
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="h-56 w-56 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <Donut
+                        data={STATUS_ORDER.map((st) => ({
+                          name: ENGAGEMENT_STATUS_LABELS[st],
+                          value: data.byStatus?.[st] ?? 0,
+                          color: STATUS_HEX[st],
+                        }))}
+                      />
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="w-full space-y-1.5">
+                    {STATUS_ORDER.filter((st) => (data.byStatus?.[st] ?? 0) > 0).map((st) => (
+                      <li key={st} className="flex items-center justify-between gap-3 text-sm">
+                        <StatusBadge status={st} />
+                        <span className="font-bold text-gray-900">{data.byStatus[st]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <h2 className="text-sm font-bold text-brand-800 mb-3">Returns by Status</h2>
-              <table className="w-full text-sm">
-                <tbody>
-                  {STATUS_ORDER.map((s) => (
-                    <tr key={s} className="border-b last:border-0">
-                      <td className="py-2"><StatusBadge status={s} /></td>
-                      <td className="py-2 text-right font-medium text-gray-800">{data.byStatus?.[s] ?? 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ChartCard title="Returns by Type" subtitle="federal returns" height={Math.max(180, typeRows.length * 38)}>
+              <HBarChart integer data={typeRows} bars={[{ key: "count", name: "Returns", color: CHART.brand }]} />
+            </ChartCard>
           </div>
         </>
       )}

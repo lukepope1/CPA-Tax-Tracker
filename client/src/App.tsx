@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
@@ -9,8 +10,12 @@ import DueDates from "./pages/DueDates";
 import TimeEntries from "./pages/TimeEntries";
 import Trash from "./pages/Trash";
 import Billing from "./pages/Billing";
-import FirmDashboard from "./pages/FirmDashboard";
-import Reports from "./pages/Reports";
+import { Loading } from "./components/ui";
+
+// The two chart-heavy admin pages load on demand, so the charting library stays
+// out of the download everyone else gets on first load.
+const FirmDashboard = lazy(() => import("./pages/FirmDashboard"));
+const Reports = lazy(() => import("./pages/Reports"));
 import Admin from "./pages/Admin";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -43,8 +48,8 @@ export default function App() {
         <Route path="/time" element={<TimeEntries />} />
         <Route path="/trash" element={<Trash />} />
         <Route path="/billing" element={<AdminRoute><Billing /></AdminRoute>} />
-        <Route path="/firm" element={<AdminRoute><FirmDashboard /></AdminRoute>} />
-        <Route path="/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+        <Route path="/firm" element={<AdminRoute><Suspense fallback={<Loading />}><FirmDashboard /></Suspense></AdminRoute>} />
+        <Route path="/reports" element={<AdminRoute><Suspense fallback={<Loading />}><Reports /></Suspense></AdminRoute>} />
         <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

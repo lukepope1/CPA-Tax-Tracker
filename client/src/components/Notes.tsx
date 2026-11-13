@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useDialog } from "../context/DialogContext";
 import { useToast } from "../context/ToastContext";
-import { Loading } from "../components/ui";
+import { EmptyState, Loading } from "../components/ui";
+import { StickyNote } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { FormType } from "../lib/types";
 
@@ -211,7 +212,10 @@ export default function Notes({
           aria-expanded={open}
         >
           <span className="w-3 text-gray-400">{open ? "▾" : "▸"}</span>
-          <span className={headingClass}>{heading}</span>
+          <span className={`inline-flex items-center gap-2 ${headingClass}`}>
+            <StickyNote className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
+            {heading}
+          </span>
           <span className={`${compact ? "text-xs" : "text-sm"} text-gray-400`}>
             {count === 0 ? "none yet" : `${count} note${count === 1 ? "" : "s"}`}
             {hasDraft && <span className="ml-1 text-amber-600">· draft saved</span>}
@@ -262,9 +266,11 @@ export default function Notes({
           {isLoading && <Loading />}
 
           {!isLoading && count === 0 && !adding && (
-            <p className={`${compact ? "text-xs" : "text-sm"} text-gray-400`}>
-              {compact ? "No notes on this return." : "No notes yet — add the first one."}
-            </p>
+            compact ? (
+              <p className="text-xs text-gray-500">No notes on this return.</p>
+            ) : (
+              <EmptyState compact icon={StickyNote} title="No notes yet" hint="Add Note to start a dated record for this client." />
+            )
           )}
 
           {notes?.map((n) => {

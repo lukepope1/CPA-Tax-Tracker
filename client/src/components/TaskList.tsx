@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Client, Task, User } from "../lib/types";
 import { isOverdue } from "../lib/dates";
+import { DueChip, EmptyState } from "./ui";
+import { ListChecks } from "lucide-react";
 
 // What this list is "about". The same three shapes drive both the query filter
 // and the fields stamped onto anything created here, so a task added under a
@@ -181,7 +183,8 @@ export default function TaskList({
   return (
     <div className={compact ? "mt-3 border-t pt-3" : "bg-white rounded-xl border border-gray-200 shadow-sm p-4"}>
       <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? "mb-1" : "mb-3"}`}>
-        <div className={labelClass}>
+        <div className={`inline-flex items-center gap-2 ${labelClass}`}>
+          <ListChecks className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden="true" />
           {heading}
           <span className="ml-2 font-normal text-gray-400">
             {open.length} open
@@ -208,7 +211,6 @@ export default function TaskList({
       {tasks && tasks.length > 0 ? (
         <ul className={compact ? "space-y-1" : "divide-y divide-gray-100"}>
           {tasks.map((t) => {
-            const overdueRow = !t.completed && isOverdue(t.dueDate);
             return (
               <li key={t.id} className={`group flex items-center gap-3 ${compact ? "" : "py-2"}`}>
                 <input
@@ -226,12 +228,14 @@ export default function TaskList({
                   )}
                 </span>
                 <span className="text-xs text-gray-400">{t.assignedTo?.name ?? "Unassigned"}</span>
-                <span
-                  className={`w-28 text-right text-xs ${
-                    overdueRow ? "font-medium text-red-600" : t.dueDate ? "text-gray-500" : "text-gray-300"
-                  }`}
-                >
-                  {t.dueDate ? formatDate(t.dueDate) : "No due date"}
+                <span className="min-w-[7rem] text-right text-xs">
+                  {!t.dueDate ? (
+                    <span className="text-gray-400">No due date</span>
+                  ) : t.completed ? (
+                    <span className="text-gray-500 line-through">{formatDate(t.dueDate)}</span>
+                  ) : (
+                    <DueChip date={t.dueDate} />
+                  )}
                 </span>
                 <button
                   onClick={() => remove.mutate(t.id)}
@@ -245,9 +249,11 @@ export default function TaskList({
           })}
         </ul>
       ) : (
-        <p className={`${compact ? "text-xs" : "text-sm"} text-gray-400`}>
-          {compact ? "No tasks on this return." : "No tasks yet — add one above."}
-        </p>
+        compact ? (
+          <p className="text-xs text-gray-500">No tasks on this return.</p>
+        ) : (
+          <EmptyState compact icon={ListChecks} title="No tasks yet" hint="Add one above — give it a due date and it'll show on the dashboard." />
+        )
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   Client,
@@ -12,7 +12,9 @@ import {
   engagementLabel,
   User,
 } from "../lib/types";
-import { Loading, EmptyState } from "../components/ui";
+import { Loading, EmptyState, statusClasses, DueChip } from "../components/ui";
+import { isOverdue } from "../lib/dates";
+import { CalendarCheck } from "lucide-react";
 
 const STATUSES = ENGAGEMENT_STATUSES;
 
@@ -24,7 +26,9 @@ export default function DueDates() {
   const queryClient = useQueryClient();
   const [days, setDays] = useState<string>("all");
   const [taxYear, setTaxYear] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  // Opened from the dashboard's pipeline bar with ?status=…, start pre-filtered.
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") ?? "");
   const [assignedFilter, setAssignedFilter] = useState<string>("");
   const [parentFilter, setParentFilter] = useState<string>("");
   const [includeCompleted, setIncludeCompleted] = useState(false);
@@ -153,10 +157,14 @@ export default function DueDates() {
   }
 
   function renderRow(d: DueDate, opts: { sub?: boolean; rolledUp?: string[] } = {}) {
-    const overdue = !d.completed && new Date(d.dueDate) < now;
+    // Calendar-day comparison: something due today isn't overdue yet. (This
+    // compared against the current instant, so today's deadlines turned red.)
+    const overdue = !d.completed && isOverdue(d.dueDate);
     return (
       <tr key={d.id} className={`border-b last:border-0 hover:bg-gray-50 ${overdue ? "bg-red-50" : ""}`}>
-        <td className={`py-2 px-3 whitespace-nowrap ${overdue ? "text-red-700 font-medium" : ""}`}>{formatDate(d.dueDate)}</td>
+        <td className="py-2 px-3 whitespace-nowrap">
+          {d.completed ? <span className="text-gray-500 line-through">{formatDate(d.dueDate)}</span> : <DueChip date={d.dueDate} />}
+        </td>
         <td className="py-2 px-3">
           <Link to={`/clients/${d.engagement?.client?.id}`} className="text-brand-600 hover:underline">
             {d.engagement?.client?.name}
@@ -191,7 +199,7 @@ export default function DueDates() {
         <td className="py-2 px-3">
           {d.engagement ? (
             <select
-              className="border border-gray-300 rounded px-2 py-1 text-sm"
+              className={`rounded-full border-0 px-3 py-1 text-xs font-semibold cursor-pointer ${statusClasses(d.engagement.status)}`}
               value={d.engagement.status}
               onChange={(e) =>
                 setStatus.mutate({
@@ -320,7 +328,7 @@ export default function DueDates() {
               );
             })}
             {dueDates && dueDates.length === 0 && (
-              <tr><td colSpan={7}><EmptyState title="Nothing due" hint="No outstanding due dates for this filter." /></td></tr>
+              <tr><td colSpan={7}><EmptyState icon={CalendarCheck} title="Nothing due" hint="No outstanding due dates for this filter." /></td></tr>
             )}
           </tbody>
         </table>
