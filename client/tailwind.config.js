@@ -1,7 +1,6 @@
-import colors from "tailwindcss/colors";
-
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
@@ -34,15 +33,22 @@ export default {
           600: "#a26c18",
           700: "#7f5317",
         },
-        // The app leans heavily on gray-400/500 for labels and secondary text,
-        // which washed everything out. One step darker across those shades lifts
-        // contrast everywhere without restyling each page.
+        // Greys come from CSS variables (see theme.css) so dark mode can invert the
+        // whole scale in one place: dark text turns light, light fills and borders
+        // turn dark. The light values keep 300–600 a step darker than Tailwind's
+        // defaults, since the app leans on those shades for labels and helper text.
         gray: {
-          ...colors.gray,
-          300: "#c4c9d1",
-          400: "#6b7280",
-          500: "#5b6372",
-          600: "#454c59",
+          50: "rgb(var(--gray-50) / <alpha-value>)",
+          100: "rgb(var(--gray-100) / <alpha-value>)",
+          200: "rgb(var(--gray-200) / <alpha-value>)",
+          300: "rgb(var(--gray-300) / <alpha-value>)",
+          400: "rgb(var(--gray-400) / <alpha-value>)",
+          500: "rgb(var(--gray-500) / <alpha-value>)",
+          600: "rgb(var(--gray-600) / <alpha-value>)",
+          700: "rgb(var(--gray-700) / <alpha-value>)",
+          800: "rgb(var(--gray-800) / <alpha-value>)",
+          900: "rgb(var(--gray-900) / <alpha-value>)",
+          950: "rgb(var(--gray-950) / <alpha-value>)",
         },
       },
     },

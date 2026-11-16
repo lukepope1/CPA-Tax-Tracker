@@ -6,12 +6,15 @@ import {
   CalendarClock,
   Clock,
   LayoutDashboard,
+  Moon,
   Receipt,
   Settings,
+  Sun,
   Trash2,
   Users,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../lib/theme";
 import { useToast } from "../context/ToastContext";
 import { api } from "../lib/api";
 
@@ -45,6 +48,9 @@ export default function Layout() {
     .toUpperCase();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggle: toggleTheme } = useTheme();
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const themeLabel = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
 
   function handleLogout() {
     setMenuOpen(false);
@@ -54,7 +60,7 @@ export default function Layout() {
 
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-      isActive ? "bg-white text-brand-800 shadow-sm" : "text-brand-100 hover:bg-white/10 hover:text-white"
+      isActive ? "nav-active keep-white bg-white text-brand-800 shadow-sm" : "text-brand-100 hover:bg-white/10 hover:text-white"
     }`;
 
   // Change-password modal state
@@ -91,14 +97,15 @@ export default function Layout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f5]">
+    <div className="min-h-screen bg-page">
       {/* Deep brand bar with a gold rule beneath it, so the app has a clear
           identity from the top instead of white-on-white. */}
       <header className="sticky top-0 z-40 bg-brand-700 border-b-[3px] border-accent-400 shadow-md">
         <div className="max-w-[1400px] mx-auto px-4 flex items-center justify-between h-14 gap-3">
           <div className="flex items-center gap-5 min-w-0">
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex h-9 items-center rounded-md bg-white px-1.5 shadow-sm">
+              {/* keep-white: the dark logo mark needs a white tile in dark mode too. */}
+              <div className="keep-white flex h-9 items-center rounded-md bg-white px-1.5 shadow-sm">
               <img
                 src="https://img1.wsimg.com/isteam/ip/eeaa1e80-9acd-4ee4-b5f3-23c726733c08/balancepointlogo-gradientwithname.png/:/rs=h:32,cg:true,m"
                 alt="BalancePoint Advisors"
@@ -113,9 +120,10 @@ export default function Layout() {
             <nav className="hidden lg:flex gap-1">
               {items.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navClass} end={item.to === "/"}>
-                  {/* Nine labelled links only just fit at 1024px; icons join
-                      them once the screen is wide enough to carry both. */}
-                  <item.icon className="hidden 2xl:inline h-4 w-4" aria-hidden="true" />
+                  {/* Labels only here: with the wordmark, account and theme
+                      toggle beside them, nine links leave no room for icons
+                      (icons pushed "Trash" under the account area at 1536px).
+                      The menu used on smaller screens shows icons. */}
                   {item.label}
                 </NavLink>
               ))}
@@ -123,11 +131,20 @@ export default function Layout() {
           </div>
           <div className="hidden lg:flex items-center gap-3 shrink-0">
             <button
+              type="button"
+              onClick={toggleTheme}
+              title={themeLabel}
+              aria-label={themeLabel}
+              className="flex h-9 w-9 items-center justify-center rounded-md text-brand-100 hover:bg-white/10 hover:text-white"
+            >
+              <ThemeIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <button
               className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-white/10"
               onClick={() => setShowPw(true)}
               title={`${user?.name ?? ""} — change password`}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-400 text-xs font-bold text-brand-900">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-400 text-xs font-bold text-[#172626]">
                 {initials}
               </div>
               {/* Name collapses to just the avatar until there's space for it. */}
@@ -178,7 +195,7 @@ export default function Layout() {
                   setShowPw(true);
                 }}
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-400 text-xs font-bold text-brand-900">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-400 text-xs font-bold text-[#172626]">
                   {initials}
                 </div>
                 <div className="leading-tight text-left min-w-0">
@@ -186,12 +203,23 @@ export default function Layout() {
                   <div className="text-xs text-brand-200">{isAdmin ? "Admin" : "Staff"} · change password</div>
                 </div>
               </button>
-              <button
-                className="shrink-0 rounded-md border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10"
-                onClick={handleLogout}
-              >
-                Log out
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  title={themeLabel}
+                  aria-label={themeLabel}
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-white/30 text-white hover:bg-white/10"
+                >
+                  <ThemeIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  className="shrink-0 rounded-md border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </div>
             </div>
           </div>
         )}

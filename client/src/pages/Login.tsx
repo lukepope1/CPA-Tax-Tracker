@@ -47,11 +47,14 @@ export default function Login() {
         <div className="overflow-hidden rounded-2xl bg-white shadow-2xl">
           <div className="h-1.5 bg-gradient-to-r from-accent-300 via-accent-400 to-accent-500" aria-hidden="true" />
           <div className="p-8">
-            <img
-              src="https://img1.wsimg.com/isteam/ip/eeaa1e80-9acd-4ee4-b5f3-23c726733c08/balancepointlogo-gradientwithname.png/:/rs=h:56,cg:true,m"
-              alt="BalancePoint Advisors"
-              className="mb-5 h-14 w-auto"
-            />
+            {/* White tile so the dark logo mark stays visible when the card is dark. */}
+            <div className="keep-white mb-5 inline-flex rounded-lg bg-white p-1.5">
+              <img
+                src="https://img1.wsimg.com/isteam/ip/eeaa1e80-9acd-4ee4-b5f3-23c726733c08/balancepointlogo-gradientwithname.png/:/rs=h:56,cg:true,m"
+                alt="BalancePoint Advisors"
+                className="h-12 w-auto"
+              />
+            </div>
             <h1 className="font-heading text-2xl font-bold text-brand-800">Tax Tracker</h1>
             <p className="mt-1 mb-6 text-sm text-gray-600">
               {mode === "login" ? "Sign in to your account" : "Create the first admin account"}

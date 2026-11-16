@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import { DialogProvider } from "./context/DialogContext";
 import "./index.css";
+import "./theme.css";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
