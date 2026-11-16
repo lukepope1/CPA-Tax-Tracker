@@ -161,6 +161,7 @@ html.dark thead tr.border-b { border-bottom-color: #2f4a48; }
 html.dark tbody tr:nth-child(even) { background-color: rgb(255 255 255 / 0.025); }
 html.dark .overflow-x-auto::-webkit-scrollbar-thumb, html.dark .overflow-y-auto::-webkit-scrollbar-thumb { background: #3a4a49; }
 html.dark input:focus-visible, html.dark select:focus-visible, html.dark textarea:focus-visible { border-color: #5d8482; box-shadow: 0 0 0 3px rgb(93 132 130 / 0.35); }
+html.dark select option, html.dark select optgroup { background-color: var(--surface); color: rgb(var(--gray-900)); }
 html.dark .rte a, html.dark .note-body a { color: #8ab4ff; }
 html.dark .note-body [style*="color: rgb(31, html.dark 41, html.dark 55)"], html.dark .rte [style*="color: rgb(31, html.dark 41, html.dark 55)"] { color: inherit !important; }
 html.dark .note-body [style*="background-color"], html.dark .rte [style*="background-color"] { color: #111827 !important; }

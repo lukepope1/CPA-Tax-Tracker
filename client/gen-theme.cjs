@@ -104,6 +104,9 @@ D(`thead tr.border-b`, `border-bottom-color: #2f4a48;`);
 D(`tbody tr:nth-child(even)`, `background-color: rgb(255 255 255 / 0.025);`);
 D(`.overflow-x-auto::-webkit-scrollbar-thumb, .overflow-y-auto::-webkit-scrollbar-thumb`, `background: #3a4a49;`);
 D(`input:focus-visible, select:focus-visible, textarea:focus-visible`, `border-color: #5d8482; box-shadow: 0 0 0 3px rgb(93 132 130 / 0.35);`);
+// Dropdown lists: status selects use see-through colour tints, which the
+// browser paints over a white popup, leaving pale text on near-white options.
+D(`select option, select optgroup`, `background-color: var(--surface); color: rgb(var(--gray-900));`);
 D(`.rte a, .note-body a`, `color: #8ab4ff;`);
 // Rich-text notes carry inline colours. The editor's "Default" text colour is a
 // dark grey that would vanish on a dark card, and highlighted runs keep their
