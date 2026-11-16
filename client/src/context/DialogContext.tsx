@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { X } from "lucide-react";
 
 interface ConfirmOpts {
   title: string;
@@ -30,12 +31,18 @@ interface ChooseOpts {
   options: ChooseOption[];
   confirmLabel?: string;
   cancelLabel?: string;
+  /**
+   * Optional middle button that goes ahead with nothing ticked (resolves []).
+   * Keeps "do it, but none of these" distinct from Cancel (resolves null), so
+   * backing out never applies anything.
+   */
+  altLabel?: string;
 }
 
 interface DialogCtx {
   confirm: (opts: ConfirmOpts) => Promise<boolean>;
   prompt: (opts: PromptOpts) => Promise<string | null>;
-  /** Checkbox list. Resolves to the checked ids, or null if cancelled. */
+  /** Checkbox list. Resolves to the checked ids, [] for altLabel, or null if cancelled. */
   choose: (opts: ChooseOpts) => Promise<string[] | null>;
 }
 
@@ -107,7 +114,19 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               if (el && (state.kind === "confirm" || state.kind === "choose")) el.focus();
             }}
           >
-            <h3 className="font-heading text-lg font-bold text-brand-800">{state.opts.title}</h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-heading text-lg font-bold text-brand-800">{state.opts.title}</h3>
+              {/* Same as Cancel: closes without doing anything. */}
+              <button
+                type="button"
+                aria-label="Close"
+                title="Close (Esc)"
+                className="-mr-2 -mt-1 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                onClick={() => close(cancelValue())}
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
             {state.opts.message && <p className="mt-1.5 whitespace-pre-line text-sm text-gray-500">{state.opts.message}</p>}
 
             {state.kind === "prompt" && (
@@ -174,6 +193,14 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   ? state.opts.cancelLabel ?? "Cancel"
                   : "Cancel"}
               </button>
+              {state.kind === "choose" && state.opts.altLabel && (
+                <button
+                  className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                  onClick={() => close([])}
+                >
+                  {state.opts.altLabel}
+                </button>
+              )}
               <button
                 className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
                   state.kind === "confirm" && state.opts.tone === "danger"

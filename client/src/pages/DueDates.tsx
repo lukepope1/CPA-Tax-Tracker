@@ -14,6 +14,7 @@ import {
 } from "../lib/types";
 import { Loading, EmptyState, statusClasses, DueChip } from "../components/ui";
 import { isOverdue } from "../lib/dates";
+import { useStatusUndo } from "../lib/statusUndo";
 import { CalendarCheck } from "lucide-react";
 
 const STATUSES = ENGAGEMENT_STATUSES;
@@ -78,6 +79,7 @@ export default function DueDates() {
   // Updates the return's workflow status. Choosing "Completed" also marks this
   // due date done (so it drops off the outstanding list); any other status
   // re-opens it.
+  const offerUndo = useStatusUndo();
   const setStatus = useMutation({
     mutationFn: async ({
       engagementId,
@@ -87,11 +89,15 @@ export default function DueDates() {
       engagementId: string;
       dueDateId: string;
       status: EngagementStatus;
+      wasCompleted: boolean;
     }) => {
-      await api.put(`/engagements/${engagementId}`, { status });
+      const resp = (await api.put(`/engagements/${engagementId}`, { status })).data;
       await api.put(`/due-dates/${dueDateId}`, { completed: status === "COMPLETED" });
+      return resp;
     },
-    onSuccess: () => {
+    onSuccess: (resp, vars) => {
+      // This dropdown also ticks the deadline complete, so Undo restores that too.
+      offerUndo(resp, () => api.put(`/due-dates/${vars.dueDateId}`, { completed: vars.wasCompleted }));
       queryClient.invalidateQueries({ queryKey: ["due-dates"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-inbox"] });
@@ -206,6 +212,7 @@ export default function DueDates() {
                   engagementId: d.engagement!.id,
                   dueDateId: d.id,
                   status: e.target.value as EngagementStatus,
+                  wasCompleted: d.completed,
                 })
               }
             >

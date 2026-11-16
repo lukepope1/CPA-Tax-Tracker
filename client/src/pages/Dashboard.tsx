@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import TaskList from "../components/TaskList";
+import { useStatusUndo } from "../lib/statusUndo";
 import { daysPastDue, isOverdue } from "../lib/dates";
 import {
   DueDate,
@@ -83,6 +84,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { choose } = useDialog();
   const queryClientHook = useQueryClient();
+  const offerUndo = useStatusUndo();
   const [viewUserId, setViewUserId] = useState<string>(user?.id ?? "");
   const userId = viewUserId || user?.id || "";
 
@@ -171,7 +173,8 @@ export default function Dashboard() {
   const updateEng = useMutation({
     mutationFn: async ({ engagementId, data }: { engagementId: string; data: Record<string, unknown> }) =>
       (await api.put(`/engagements/${engagementId}`, data)).data,
-    onSuccess: () => {
+    onSuccess: (resp) => {
+      offerUndo(resp);
       queryClientHook.invalidateQueries({ queryKey: ["dashboard-inbox"] });
       queryClientHook.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClientHook.invalidateQueries({ queryKey: ["due-dates"] });
@@ -206,12 +209,15 @@ export default function Dashboard() {
         hint: `currently ${ENGAGEMENT_STATUS_LABELS[s.status]}`,
       })),
       confirmLabel: "Apply",
-      cancelLabel: "This return only",
+      // Cancel / ✕ / Esc back out entirely; this button is the old "just this one".
+      altLabel: "This return only",
     });
+    // Cancelled: change nothing. The dropdown snaps back to the current status.
+    if (picked === null) return;
 
     updateEng.mutate({
       engagementId: item.id,
-      data: { status, ...(picked && picked.length > 0 ? { cascadeToIds: picked } : {}) },
+      data: { status, ...(picked.length > 0 ? { cascadeToIds: picked } : {}) },
     });
   }
 

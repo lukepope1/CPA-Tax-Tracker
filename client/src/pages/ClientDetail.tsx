@@ -25,6 +25,7 @@ import { Loading, statusClasses } from "../components/ui";
 import { CalendarDays, Mail, Pencil, Phone, UserRound, X } from "lucide-react";
 import TaskList from "../components/TaskList";
 import Notes from "../components/Notes";
+import { useStatusUndo } from "../lib/statusUndo";
 
 interface BillDetail {
   id: string;
@@ -110,6 +111,7 @@ function priorYear(eng: Engagement, all: Engagement[]): { billed: number | null;
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const offerUndo = useStatusUndo();
   const { prompt, confirm, choose } = useDialog();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -363,7 +365,11 @@ export default function ClientDetail() {
   const updateEngagement = useMutation({
     mutationFn: async ({ engagementId, data }: { engagementId: string; data: Partial<Engagement> }) =>
       (await api.put(`/engagements/${engagementId}`, data)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["client", id] }),
+    onSuccess: (resp) => {
+      // Only offers Undo when the update actually changed a status.
+      offerUndo(resp);
+      queryClient.invalidateQueries({ queryKey: ["client", id] });
+    },
   });
 
   const toggleDueDate = useMutation({
@@ -460,12 +466,15 @@ export default function ClientDetail() {
         hint: `currently ${ENGAGEMENT_STATUS_LABELS[c.status]}`,
       })),
       confirmLabel: "Apply",
-      cancelLabel: "This return only",
+      // Cancel / ✕ / Esc back out entirely; this button is the old "just this one".
+      altLabel: "This return only",
     });
+    // Cancelled: change nothing. The dropdown snaps back to the current status.
+    if (picked === null) return;
 
     updateEngagement.mutate({
       engagementId: eng.id,
-      data: { status, ...(picked && picked.length > 0 ? { cascadeToIds: picked } : {}) },
+      data: { status, ...(picked.length > 0 ? { cascadeToIds: picked } : {}) },
     });
   }
 

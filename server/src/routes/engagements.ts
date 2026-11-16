@@ -273,10 +273,63 @@ router.post("/", async (req, res) => {
   res.status(201).json(engagement);
 });
 
+// Undo a status change made a moment ago (picked the wrong step by mistake).
+// Puts each return back to its previous status and deletes the history entry
+// the change wrote, so the slip doesn't linger in the status history or skew
+// Time in Status. Deliberately narrow: only your own changes, only recent
+// ones, and only while the return is still in the status you set — if anyone
+// has moved it on since, that return is left alone.
+const UNDO_WINDOW_MS = 15 * 60 * 1000;
+const undoSchema = z.object({
+  changes: z
+    .array(z.object({ engagementId: z.string(), previousStatus: z.enum(STATUSES), statusChangeId: z.string() }))
+    .min(1)
+    .max(50),
+});
+
+router.post("/status-undo", async (req, res) => {
+  const parsed = undoSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  let reverted = 0;
+  let skipped = 0;
+  for (const c of parsed.data.changes) {
+    const [entry, eng] = await Promise.all([
+      prisma.statusChange.findUnique({
+        where: { id: c.statusChangeId },
+        select: { engagementId: true, status: true, changedById: true, changedAt: true },
+      }),
+      prisma.engagement.findUnique({ where: { id: c.engagementId }, select: { status: true } }),
+    ]);
+    const ok =
+      entry &&
+      eng &&
+      entry.engagementId === c.engagementId &&
+      entry.changedById === req.user!.userId &&
+      Date.now() - entry.changedAt.getTime() <= UNDO_WINDOW_MS &&
+      eng.status === entry.status;
+    if (!ok) {
+      skipped++;
+      continue;
+    }
+    await prisma.$transaction([
+      prisma.engagement.update({ where: { id: c.engagementId }, data: { status: c.previousStatus } }),
+      prisma.statusChange.delete({ where: { id: c.statusChangeId } }),
+    ]);
+    reverted++;
+  }
+  res.json({ reverted, skipped });
+});
+
 router.put("/:id", async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const data = parsed.data;
+
+  // Everything this request changes about status, so the client can offer an
+  // exact Undo: the return (and any sub-returns carried along), what each was
+  // before, and the history entry written for it.
+  const statusUndo: { engagementId: string; previousStatus: string; statusChangeId: string }[] = [];
 
   // Record a status-change history entry when the status actually changes.
   if (data.status) {
@@ -285,9 +338,10 @@ router.put("/:id", async (req, res) => {
       select: { status: true },
     });
     if (current && current.status !== data.status) {
-      await prisma.statusChange.create({
+      const sc = await prisma.statusChange.create({
         data: { engagementId: req.params.id, status: data.status, changedById: req.user!.userId },
       });
+      statusUndo.push({ engagementId: req.params.id, previousStatus: current.status, statusChangeId: sc.id });
     }
 
     // Carry the status down to state/city sub-returns when asked. Sub-returns
@@ -302,7 +356,7 @@ router.put("/:id", async (req, res) => {
           // Only the sub-returns the user actually ticked, when a list is given.
           ...(data.cascadeToIds ? { id: { in: data.cascadeToIds } } : {}),
         },
-        select: { id: true },
+        select: { id: true, status: true },
       });
       if (children.length > 0) {
         const ids = children.map((c) => c.id);
@@ -310,13 +364,14 @@ router.put("/:id", async (req, res) => {
           where: { id: { in: ids } },
           data: { status: data.status },
         });
-        await prisma.statusChange.createMany({
-          data: ids.map((engagementId) => ({
-            engagementId,
-            status: data.status!,
-            changedById: req.user!.userId,
-          })),
-        });
+        // One at a time rather than createMany so each history entry's id is
+        // known for Undo; a return has only a handful of sub-returns.
+        for (const child of children) {
+          const sc = await prisma.statusChange.create({
+            data: { engagementId: child.id, status: data.status!, changedById: req.user!.userId },
+          });
+          statusUndo.push({ engagementId: child.id, previousStatus: child.status, statusChangeId: sc.id });
+        }
       }
     }
   }
@@ -347,7 +402,7 @@ router.put("/:id", async (req, res) => {
     include: { dueDates: { orderBy: { dueDate: "asc" } }, client: { select: { id: true, name: true } } },
   });
 
-  res.json(engagement);
+  res.json(statusUndo.length ? { ...engagement, statusUndo } : engagement);
 });
 
 // Soft-delete a return (and its state/city sub-returns). Restorable for 30 days
