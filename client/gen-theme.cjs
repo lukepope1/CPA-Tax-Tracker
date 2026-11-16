@@ -48,7 +48,11 @@ ${Object.entries(grayDark).map(([k, v]) => `  --gray-${k}: ${rgb(v)};`).join("\n
   --page: #0c1515;
 }`);
 
-const D = (sel, body) => out.push(`html.dark ${sel} { ${body} }`);
+// Every selector in a comma list needs its own html.dark prefix: in CSS the
+// prefix binds only to the selector it's written on, so "html.dark .a, .b"
+// would apply .b in light mode too.
+const D = (sel, body) =>
+  out.push(`${sel.split(",").map((x) => `html.dark ${x.trim()}`).join(", ")} { ${body} }`);
 
 out.push(`\n/* ---- surfaces ---- */`);
 out.push(`.bg-page { background-color: var(--page); }`);
